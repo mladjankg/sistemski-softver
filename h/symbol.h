@@ -8,35 +8,36 @@ namespace ss {
 
         }
 
-        Symbol() : no(noCounter++) {
+        Symbol(std::string& label, std::string& section, unsigned int offset, bool local) 
+            : no(noCounter++), label(label), section(section), offset(offset), local(local) {
 
         }
 
-        std::string getLabel() {
+        const std::string getLabel() const {
             return label;
         }
 
-        void setLabel(std::string label) {
+        void setLabel(std::string& label) {
             this->label = label; 
         }
 
-        std::string getSection() {
+        const std::string& getSection() const {
             return section;
         }
 
-        void setLabel(std::string section) {
+        void setSection(std::string& section) {
             this->section = section;
         }
 
-        std::string getOffset() {
+        const unsigned int getOffset() const {
             return offset;
         }
 
-        void setOffset(std::string offset) {
+        void setOffset(unsigned int offset) {
             this->offset = offset;
         }
 
-        bool isLocal() {
+        const bool isLocal() const {
             return local;
         }
 
@@ -44,15 +45,15 @@ namespace ss {
             this->local = local;
         }
 
-        unsigned int getNo() {
+        const unsigned int getNo() const {
             return no;
         }
     private:
-        std::string label;
-        std::string section;
-        std::string offset;
-        bool local;
-        unsigned int no;
+        std::string label;      //Label name
+        std::string section;    //Section name
+        unsigned int offset;     //Offset from start of the section
+        bool local;             //Is label local or global
+        unsigned int no;        //Symbol identifier
 
         static unsigned int noCounter;
     };

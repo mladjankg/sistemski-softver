@@ -1,8 +1,14 @@
 #include <string>
 #include <list>
+#include <exception>
+
 using namespace std;
 
 namespace ss {
+    class StringTokenizerException: public std::exception {
+        
+    };
+
     class StringTokenizer {
     public:
         StringTokenizer(const string& delimiter) : delimiter(delimiter), tokens(nullptr) {
@@ -13,7 +19,7 @@ namespace ss {
 
         bool hasNext();
 
-        string nextToken();
+        string& nextToken() throw();
 
         ~StringTokenizer();
     private:
@@ -25,6 +31,6 @@ namespace ss {
 
     };
 
-
+  
 
 }

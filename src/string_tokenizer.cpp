@@ -13,9 +13,8 @@ void StringTokenizer::tokenize(const string& str) {
     pos = str.find(delimiter, lastPos);
 
     while (pos != string::npos) {
-        string token = str.substr(lastPos + 1, pos - lastPos);
+        string token = str.substr(lastPos, pos - lastPos);
         lastPos = pos + 1;
-
         tokens->push_back(token);
 
         pos = str.find(delimiter, lastPos);
@@ -37,16 +36,17 @@ bool StringTokenizer::hasNext() {
 
 }
 
-string StringTokenizer::nextToken() {
+string& StringTokenizer::nextToken() throw() {
     if (!hasNext()) {
-        return nullptr;
+        throw StringTokenizerException();
     }
 
-    string retValue = *current;
+    string& retValue = *current;
     ++current;
     return retValue;
 }
 
 StringTokenizer::~StringTokenizer() {
-
+    delete tokens;
+    tokens = nullptr;
 }
