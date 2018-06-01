@@ -1,3 +1,6 @@
+#ifndef _SS_SYMBOL_H_
+#define _SS_SYMBOL_H_
+
 #include <string>
 
 namespace ss {
@@ -58,3 +61,5 @@ namespace ss {
         static unsigned int noCounter;
     };
 }
+
+#endif

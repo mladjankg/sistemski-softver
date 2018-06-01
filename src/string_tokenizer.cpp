@@ -1,5 +1,6 @@
 #include <string>
 #include "string_tokenizer.h"
+#include "utils.h"
 
 using namespace std;
 using namespace ss;
@@ -8,18 +9,33 @@ void StringTokenizer::tokenize(const string& str) {
     size_t pos;
     size_t lastPos = 0;
 
+    //Creating list for storing tokens.
     tokens = new list<string>();
 
-    pos = str.find(delimiter, lastPos);
+    //Coping string that needs to be formatted in new string.
+    std::string formatted(str);
 
-    while (pos != string::npos) {
-        string token = str.substr(lastPos, pos - lastPos);
-        lastPos = pos + 1;
-        tokens->push_back(token);
+    //Removing empty characters on the beggining and the end of the string.
+    formatted = Utils::trim(formatted);
 
-        pos = str.find(delimiter, lastPos);
+    //Removing repeating sequence of delimiter char in string.
+    formatted = Utils::removeRepeatingChars(formatted, delimiter);
+
+    //Finding position of the first occurence of the delimiter.
+    pos = formatted.find(delimiter, lastPos);
+    
+    if (pos != string::npos) {
+        while ((pos != string::npos) && ((pos + 1) != formatted.length())) {
+            string token = formatted.substr(lastPos, pos - lastPos);
+            lastPos = pos + 1;
+            tokens->push_back(token);
+
+            pos = formatted.find(delimiter, lastPos);
+        }
     }
-
+    else {
+        tokens->push_back(formatted);
+    }
     current = tokens->begin();
 } 
 
@@ -44,6 +60,17 @@ string& StringTokenizer::nextToken() throw() {
     string& retValue = *current;
     ++current;
     return retValue;
+}
+
+int StringTokenizer::tokenNumber() {
+    if (this->tokens == nullptr) {
+        //Tokenizer isn't initialized.
+        return -1;
+    }
+
+    else {
+        return tokens->size();
+    }
 }
 
 StringTokenizer::~StringTokenizer() {
