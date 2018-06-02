@@ -1,6 +1,7 @@
 #include <string>
 #include "string_tokenizer.h"
 #include "utils.h"
+#include "ss_exceptions.h"
 
 using namespace std;
 using namespace ss;

@@ -3,15 +3,10 @@
 
 #include <string>
 #include <list>
-#include <exception>
-
+#include "ss_exceptions.h"
 using namespace std;
 
 namespace ss {
-    class StringTokenizerException: public std::exception {
-        
-    };
-
     class StringTokenizer {
     public:
         StringTokenizer(const string& delimiter) : delimiter(delimiter), tokens(nullptr) {

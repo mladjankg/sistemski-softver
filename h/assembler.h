@@ -3,37 +3,12 @@
 #include <string>
 #include <fstream>
 #include <exception>
-
+#include <unordered_map>
+#include "symbol.h"
+#include "ss_exceptions.h"
 namespace ss {
-    class FileException: public std::exception {
-    public:
-        FileException(const char* lineContent) :message(lineContent) {}
-
-        const char* what() const throw() override {
-            return message;
-        }
-
-    private:
-        const char* message;
-    };
-
-    class AssemblingException: public std::exception {
-    public:
-        AssemblingException(const char* message, int lineNumber) : message(message), lineNumber(lineNumber) {}
-
-
-        const char* what() const throw() override {
-            std::string ret = "Error at line " + lineNumber;
-            ret += lineNumber;
-            ret += "\n";
-            ret += message;
-            return ret.c_str();
-        }
-
-    private:
-        const char* message;
-        int lineNumber;
-    };
+   
+    using SymbolTable = std::unordered_map<std::string, Symbol*>;
 
     class Assembler {
     public:
@@ -87,9 +62,19 @@ namespace ss {
             REGINDPOM
         };
 
+        //Condition codes
+        enum Condition: char {
+            EQ, // == 
+            NE, // !=
+            GT, // >
+            AL  // unconditional
+        };
+
         std::ifstream *input;
 
         std::ofstream *output;
+
+        std::unordered_map<std::string, Symbol*> symbolTable;
     };
 }
 

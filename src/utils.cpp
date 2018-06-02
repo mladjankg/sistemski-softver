@@ -3,7 +3,7 @@
 
 using namespace ss;
 
-const std::string Utils::emptyChars = "\n\t\r\v\f ";
+const std::string Utils::emptyChars = "\n\t\v\f\r ";
 const std::string Utils::empty = "";
 std::string& Utils::trim(std::string& str) {
     size_t front = str.find_first_not_of(Utils::emptyChars);
@@ -20,7 +20,7 @@ std::string& Utils::trim(std::string& str) {
     return str;
 }
 
-std::string& Utils::removeRepeatingChars(std::string& str, const std::string& chars = Utils::emptyChars) {
+std::string& Utils::removeRepeatingChars(std::string& str, const std::string& chars) {
     //std::string emptyChars = " \t\n\r\v\f";
     int j = 0;
     bool found = false;
