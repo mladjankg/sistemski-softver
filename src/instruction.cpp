@@ -2,6 +2,7 @@
 #include "utils.h"
 #include "instruction.h"
 #include "string_tokenizer.h"
+#include "operand.h"
 
 using namespace ss;
 
@@ -179,8 +180,26 @@ void Instruction::parseInstruction(std::string line) throw() {
             throw AssemblingException("Syntax error", line);
         }
         
+        this->rawOperand1 = operands;
+        this->operand1 = new Operand(operands);
 
+        if (!this->operand1->isValid()) {
+            throw AssemblingException("Invalid operand", line);
+        }
     }
 
     
+}
+
+
+Instruction::~Instruction() {
+    if (operand1 != nullptr) {
+        delete operand1;
+        operand1 = nullptr;
+    }
+    
+    if (operand2 != nullptr) {
+        delete operand2;
+        operand2 = nullptr;
+    }
 }

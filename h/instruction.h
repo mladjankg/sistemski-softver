@@ -4,12 +4,18 @@
 #include <regex>
 #include "asm_declarations.h"
 
+
+
 namespace ss {
+    class Operand;
+    
     class Instruction {
     public:
         Instruction() {}
 
         void parseInstruction(std::string) throw();
+
+        ~Instruction();
     private:
         static std::regex al, eq, ne, gt, unc;
 
@@ -17,8 +23,11 @@ namespace ss {
         AddressingCode addressing;
         ConditionCode condition;
 
-        std::string operand1;
-        std::string operand2;
+        std::string rawOperand1;
+        Operand* operand1;    
+
+        std::string rawOperand2;
+        Operand* operand2;
 
         size_t size;
     };

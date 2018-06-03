@@ -28,8 +28,8 @@ int main(int argc, const char* argv[]) {
     int k;
 
     k= 5;
-    std::regex reg("(.*)(eq$)");
-
+//    std::regex reg("(^r[0-7]\\[\w+\\]$)");
+    std::regex reg("^r[0-7]\\[\\w+\\]$");
 
 
     if (std::regex_match(argv[1], reg))
