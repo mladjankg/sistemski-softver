@@ -23,7 +23,14 @@ namespace ss {
 
     class AssemblingException: public std::exception {
     public:
-        AssemblingException(const char* message, int lineNumber) : message(message), lineNumber(lineNumber) {}
+        AssemblingException(const char* message, int lineNumber) : message(message), lineNumber(lineNumber) {
+            std::string ret = "Error at line " + lineNumber;
+            ret += lineNumber;
+            ret += "\n";
+            ret += message;
+            
+            this->message = ret.c_str();
+        }
 
         const char* what() const throw() override {
             std::string ret = "Error at line " + lineNumber;
@@ -33,6 +40,12 @@ namespace ss {
             return ret.c_str();
         }
 
+        AssemblingException(std::string message, std::string line, int lineNumber = 0) {
+            // this->message = "ERROR: ";
+            // this->message += message + " at line:\n";
+            // this->message += lineNumber;
+            // this->message += " " + line;
+        }
     private:
         const char* message;
         int lineNumber;

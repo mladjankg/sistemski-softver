@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <regex>
 #include "string_tokenizer.h"
 #include "utils.h"
 #include "assembler.h"
@@ -22,8 +23,19 @@ void testRemoveEmptyEntries() {
     std::cout << line << endl;
 }
 
-int main() {
-    testTrim();
+int main(int argc, const char* argv[]) {
+
+    int k;
+
+    k= 5;
+    std::regex reg("(.*)(eq$)");
+
+
+
+    if (std::regex_match(argv[1], reg))
+        std::cout<<"MATCH\n";
+    else 
+        std::cout<<"UNMATCHED\n";
 }
 
 int mains(int argc, const char* argv[]) {

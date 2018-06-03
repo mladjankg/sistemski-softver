@@ -48,7 +48,7 @@ Assembler Assembler::getInstance(std::string& inputFile, std::string& outputFile
         
         out->close();
         delete out;
-        message.
+  
         throw FileException(message.c_str());
     }
     

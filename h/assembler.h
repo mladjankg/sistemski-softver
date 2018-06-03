@@ -34,42 +34,6 @@ namespace ss {
 
         void move(Assembler&);
 
-        //Instructions op codes.
-        enum Instruction: char {
-            ADD, 
-            SUB, 
-            MUL, 
-            DIV,
-            CMP,
-            AND,
-            OR,
-            NOT,
-            TEST,
-            PUSH,
-            POP,
-            CALL,
-            IRET,
-            MOV,
-            SHL,
-            SHR 
-        };
-
-        //Addressing codes
-        enum Addressing: char {
-            IMMED,
-            REGDIR,
-            MEMDIR,
-            REGINDPOM
-        };
-
-        //Condition codes
-        enum Condition: char {
-            EQ, // == 
-            NE, // !=
-            GT, // >
-            AL  // unconditional
-        };
-
         std::ifstream *input;
 
         std::ofstream *output;

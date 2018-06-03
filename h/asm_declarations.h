@@ -15,7 +15,8 @@ enum InstructionCode : char {
     IRET,
     MOV,
     SHL,
-    SHR
+    SHR,
+    RET
 };
 
 //Addressing codes
