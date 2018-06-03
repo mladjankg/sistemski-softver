@@ -8,12 +8,12 @@ const std::string Utils::empty = "";
 std::string& Utils::trim(std::string& str) {
     size_t front = str.find_first_not_of(Utils::emptyChars);
 
-    if (front != string::npos) {
+    if (front != std::string::npos) {
         str = str.substr(front);
     }
 
     size_t back = str.find_last_not_of(Utils::emptyChars);
-    if (back != string::npos) {
+    if (back != std::string::npos) {
         str = str.substr(0, back + 1);
     }
 

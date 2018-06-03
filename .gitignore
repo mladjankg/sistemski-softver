@@ -3,4 +3,4 @@
 assembler
 .settings/language.settings.xml
 obj/*.o
-
+nbproject/*

@@ -1,8 +1,7 @@
 #ifndef _SS_UTILS_H_
 #define _SS_UTILS_H_
 #include <string>
-
-using namespace std;
+#include <regex>
 
 namespace ss {
     

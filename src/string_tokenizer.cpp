@@ -3,15 +3,14 @@
 #include "utils.h"
 #include "ss_exceptions.h"
 
-using namespace std;
 using namespace ss;
 
-void StringTokenizer::tokenize(const string& str) {
+void StringTokenizer::tokenize(const std::string& str) {
     size_t pos;
     size_t lastPos = 0;
 
     //Creating list for storing tokens.
-    tokens = new list<string>();
+    tokens = new list<std::string>();
 
     //Coping string that needs to be formatted in new string.
     std::string formatted(str);
@@ -25,9 +24,9 @@ void StringTokenizer::tokenize(const string& str) {
     //Finding position of the first occurence of the delimiter.
     pos = formatted.find(delimiter, lastPos);
     
-    if (pos != string::npos) {
+    if (pos != std::string::npos) {
         while ((pos != string::npos) && ((pos + 1) != formatted.length())) {
-            string token = formatted.substr(lastPos, pos - lastPos);
+            std::string token = formatted.substr(lastPos, pos - lastPos);
             lastPos = pos + 1;
             tokens->push_back(token);
 

@@ -3,7 +3,7 @@ OBJDIR=obj
 SRCDIR=src
 CC=g++
 CFLAGS=-I$(IDIR)
-ARCH=-m32 -std=c++11
+ARCH=-m32 -std=c++11 -static
 PROGRAM=assembler
 
 SRC = $(wildcard $(SRCDIR)/*.cpp)
