@@ -2,6 +2,7 @@
 #include <fstream>
 #include <unordered_map>
 #include <iterator>
+#include <iostream>
 
 #include "assembler.h"
 #include "utils.h"
@@ -9,6 +10,8 @@
 #include "symbol.h"
 #include "ss_exceptions.h"
 #include "instruction.h"
+#include "operand.h"
+#include "section.h"
 
 using namespace ss;
 using namespace std;
@@ -26,7 +29,7 @@ void Assembler::move(Assembler& a) {
     this->symbolTable = a.symbolTable;
 }
 
-Assembler Assembler::getInstance(std::string& inputFile, std::string& outputFile) throw() {
+Assembler Assembler::getInstance(std::string& inputFile, std::string& outputFile) {
     
     //Creating input stream.
     std::ifstream* in = new std::ifstream(inputFile, std::ifstream::in);
@@ -55,15 +58,20 @@ Assembler Assembler::getInstance(std::string& inputFile, std::string& outputFile
     return Assembler(in, out);
 }
 
-void Assembler::assemble() throw() {
+void Assembler::assemble() {
     this->firstPass();
 }
     
-void Assembler::firstPass() throw() {
+void Assembler::firstPass() {
     std::string line;
-    int lineNumber = 0;
-    std::string currentSection = "";
+    
+    
     int locationCounter = 0;
+    int lineNumber = 0;
+    
+    Section* previousSection = nullptr;
+    Section* currentSection = nullptr;
+    
     while(std::getline(*(this->input),line)) {
         ++lineNumber;
 
@@ -77,16 +85,17 @@ void Assembler::firstPass() throw() {
             line = line.substr(0, commentStart);
         }
 
-        //If we read line that equals to .end, we reached end of file.
-        line = Utils::trim(line);
-        if (".end") break;
-
         //If line consist only of empty chars, loop is proceeding to the next line.
         if (line.find_last_not_of(Utils::emptyChars) == std::string::npos) {
             continue;
         }
-
-        //Parsing one line
+        
+        line = Utils::trim(line);
+        this->lines[lineNumber] = line;
+        
+        std::string newLine;
+         
+        //===================Parsing label=======================
         if (line.find_first_of(':') != std::string::npos) {
             
             //Getting label name
@@ -103,22 +112,138 @@ void Assembler::firstPass() throw() {
                 throw AssemblingException(line.c_str(), lineNumber);
             }
 
-            Symbol* s = new Symbol();
-            //TODO: Umetni da ako procita globalni da stavi da je globalni
-            s->setLocal(true); 
-            s->setLabel(token);
-            s->setOffset(locationCounter);
-            s->setSection(currentSection);
+            Symbol* s = new Symbol(token, currentSection ? currentSection->getName() : "udf", locationCounter, true);
             
             this->symbolTable[token] = s;
+            
+            if (st.tokenNumber() == 1) {
+                continue;
+            }
+            else {
+                newLine = st.nextToken();
+            }
         }
 
-       // Instruction i = new Instruction();
+        else {
+            newLine = line;
+        }
+        //===================================================================
+        
+        newLine = Utils::trim(newLine);
+        newLine = Utils::removeRepeatingChars(newLine);
+        
+         //If we read line that equals to .end, we reached end of file.
+        if (newLine.compare(".end") == 0) break;
+        
+        //====================  Parsing section or variable declaration.    ========================
+        if (newLine[0] == '.') {
+            if (newLine.compare(".text") == 0) {
+                if (this->symbolTable.find(newLine) != this->symbolTable.end()) {
+                    throw AssemblingException("ERROR: Section .text was already defined, at line", line, lineNumber);
+                }
+                else {
+                    this->changeSection(newLine, Access::EX, locationCounter, previousSection, currentSection);
+                }
+            }
+            
+            else if (newLine.compare(".data") == 0) {
+                 if (this->symbolTable.find(newLine) != this->symbolTable.end()) {
+                    throw AssemblingException("ERROR: Section .data was already defined, at line", line, lineNumber);
+                }
+                else {
+                    this->changeSection(newLine, Access::RW, locationCounter, previousSection, currentSection);
+                }
+            }
+            
+            else if (newLine.compare(".rodata") == 0) {
+                 if (this->symbolTable.find(newLine) != this->symbolTable.end()) {
+                    throw AssemblingException("ERROR: Section .rodata was already defined, at line", line, lineNumber);
+                }
+                else {
+                    this->changeSection(newLine, Access::RD, locationCounter, previousSection, currentSection);
+                }
+            }
+            
+            else if (newLine.compare(".bss") == 0) {
+                 if (this->symbolTable.find(newLine) != this->symbolTable.end()) {
+                    throw AssemblingException("ERROR: Section .bss was already defined, at line", line, lineNumber);
+                }
+                else {
+                    this->changeSection(newLine, Access::RW, locationCounter, previousSection, currentSection);
+                }
+            }
+            
+            else {
+                parseDirective(newLine, lineNumber, locationCounter);
+            }
+          
+            
+            continue;
+        }
+        //=====================================================================================
+        
+        //=========================== Parsing instruction =====================================
+        Instruction* i = new Instruction();
+        i->parseInstruction(newLine, lineNumber);
+
+        this->instructions[lineNumber] = i;
+       
     }
 }
 
 void Assembler::secondPass() {
 
+}
+
+void Assembler::parseDirective(const std::string& line, const int lineNumber, int& locationCounter) {
+    
+    size_t spacePos = line.find_first_of(" ");
+
+    std::string directive;
+    std::string ops;
+
+    if (spacePos != std::string::npos) {
+        directive = line.substr(0, spacePos);
+        ops = line.substr(spacePos + 1);
+    }
+
+    if (directive.compare(".byte") == 0) {
+        locationCounter += 1;
+    }
+    else if (directive.compare(".word") == 0) {
+        locationCounter += 2;
+    }
+    else if (directive.compare(".long") == 0) {
+        locationCounter += 4;
+    }
+
+    else if (directive.compare(".skip") == 0) {
+        try {
+            int skip = std::stoi(ops);
+            
+            locationCounter += skip;
+        }
+        catch (std::exception& e) {
+            throw AssemblingException("Invalid use of directive .skip", line, lineNumber);
+        }
+    }
+    
+    else if (directive.compare(".align") == 0) {
+        //TODO: implement align.
+    }
+
+}
+
+void Assembler::changeSection(const std::string& sectionName, Access access, int locationCounter, Section*& previousSection, Section*& currentSection) {
+
+    size_t sectionSize = previousSection ? locationCounter - previousSection->getSectionSize() : locationCounter;
+
+    previousSection = currentSection;
+    Symbol* s = new Section(sectionSize, Access::EX, sectionName, sectionName, locationCounter, true);
+    currentSection = (Section*)s;
+
+    
+    this->symbolTable[sectionName] = s;
 }
 
 Assembler::~Assembler() {
@@ -134,4 +259,20 @@ Assembler::~Assembler() {
     //Deleting output stream.
     delete this->output;
     this->output = nullptr;
+    
+    for(auto it = this->symbolTable.begin(); it != this->symbolTable.end(); it++) {
+        if (it->second != nullptr) {
+            delete it->second;
+            it->second = nullptr;
+        } 
+    }
+        
+    for(auto it = this->instructions.begin(); it != this->instructions.end(); it++) {
+        if (it->second != nullptr) {
+            delete it->second;
+            it->second = nullptr;
+        } 
+    }
+       
+    
 }

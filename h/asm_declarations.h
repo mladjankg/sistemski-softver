@@ -34,3 +34,10 @@ enum ConditionCode : char {
     GT, // >
     AL  // unconditional
 };
+
+enum Access: char {
+    RD,
+    WR,
+    RW,
+    EX   
+};

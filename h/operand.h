@@ -6,10 +6,11 @@
 namespace ss {
     class Operand {
     public:
-        Operand(std::string);
+        Operand(std::string&);
 
         Operand(Operand&) = delete;
         Operand(Operand&&) = delete;
+        
         bool isValid() const { return valid; }
 
         bool requiresExtraBytes() const { return extraBytes; }

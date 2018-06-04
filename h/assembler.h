@@ -6,17 +6,20 @@
 #include <unordered_map>
 #include "symbol.h"
 #include "ss_exceptions.h"
+#include "asm_declarations.h"
+
 namespace ss {
    
     using SymbolTable = std::unordered_map<std::string, Symbol*>;
-
+    class Instruction;
+    
     class Assembler {
     public:
         Assembler(Assembler&& a);
 
-        void assemble() throw();
+        void assemble();
 
-        static Assembler getInstance(std::string& inputFile, std::string& outputFile) throw();
+        static Assembler getInstance(std::string& inputFile, std::string& outputFile);
 
         ~Assembler();
     private:
@@ -25,11 +28,15 @@ namespace ss {
         Assembler(std::ifstream* in, std::ofstream* out);
 
         //Method that does the first pass.
-        void firstPass() throw();
+        void firstPass();
 
         //Method that does the second pass.
         void secondPass();
 
+        void changeSection(const std::string& sectionName, Access access, int locationCounter, Section*& previousSection, Section*& currentSection);
+        
+        void parseDirective(const std::string& line, const int lineNumber, int& locationCounter);
+        
         void copy(const Assembler&);
 
         void move(Assembler&);
@@ -39,6 +46,10 @@ namespace ss {
         std::ofstream *output;
 
         std::unordered_map<std::string, Symbol*> symbolTable;
+        
+        std::unordered_map<int, std::string> lines;
+        
+        std::unordered_map<int, Instruction*> instructions;
     };
 }
 

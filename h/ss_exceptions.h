@@ -23,32 +23,18 @@ namespace ss {
 
     class AssemblingException: public std::exception {
     public:
-        AssemblingException(const char* message, int lineNumber) : message(message), lineNumber(lineNumber) {
-            std::string ret = "Error at line " + lineNumber;
-            ret += lineNumber;
-            ret += "\n";
-            ret += message;
-            
-            this->message = ret.c_str();
-        }
+        AssemblingException(std::string line, int lineNumber);
 
-        const char* what() const throw() override {
-            std::string ret = "Error at line " + lineNumber;
-            ret += lineNumber;
-            ret += "\n";
-            ret += message;
-            return ret.c_str();
-        }
+        const char* what() const throw();
 
-        AssemblingException(std::string message, std::string line, int lineNumber = 0) {
-            // this->message = "ERROR: ";
-            // this->message += message + " at line:\n";
-            // this->message += lineNumber;
-            // this->message += " " + line;
-        }
+        AssemblingException(std::string msg, std::string line, int lineNumber = 0);
+        
+        AssemblingException(const AssemblingException& ae);
+        
     private:
-        const char* message;
-        int lineNumber;
+        std::string message;
+        
+        static std::string generigMsg;
     };
 }
 #endif

@@ -23,7 +23,7 @@ void testRemoveEmptyEntries() {
     std::cout << line << endl;
 }
 
-int main(int argc, const char* argv[]) {
+int mains(int argc, const char* argv[]) {
 
     int k;
 
@@ -38,7 +38,7 @@ int main(int argc, const char* argv[]) {
         std::cout<<"UNMATCHED\n";
 }
 
-int mains(int argc, const char* argv[]) {
+int main(int argc, const char* argv[]) {
     if (argc < 2) {
         std::cout << "ERROR: insufficient number of parameters.\n" << usage << std::endl;
         return -1;
@@ -48,7 +48,7 @@ int mains(int argc, const char* argv[]) {
         std::cout << "ERROR: too many parameters.\n" << usage << std::endl;
         return -1;
     }
-    
+
     std::string input = std::string(argv[1]);
     std::string output = std::string(argv[2]);
     
@@ -60,6 +60,12 @@ int mains(int argc, const char* argv[]) {
     }
     catch (FileException e) {
         std::cout << e.what();
+    }
+    catch (AssemblingException& e) {
+        std::cout << e.what();
+    }
+    catch (StringTokenizerException e) {
+        
     }
 }
 

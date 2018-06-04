@@ -11,14 +11,24 @@ namespace ss {
     
     class Instruction {
     public:
-        Instruction() {}
+        Instruction() : size(2) {}
 
-        void parseInstruction(std::string) throw();
+        void parseInstruction(std::string, int);
+
+        Operand* getOperand1() const {
+            return operand1;
+        }
+
+        Operand* getOperand2() const {
+            return operand2;
+        }
 
         ~Instruction();
     private:
         static std::regex al, eq, ne, gt, unc;
 
+        Operand* parseOperand(std::string) throw();
+        
         InstructionCode instruction;
         AddressingCode addressing;
         ConditionCode condition;
