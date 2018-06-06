@@ -4,6 +4,8 @@
 #include <regex>
 
 namespace ss {
+    class Assembler;
+    
     class Operand {
     public:
         Operand(std::string&);
@@ -29,6 +31,9 @@ namespace ss {
         OperandType getType() const { return this->type; }
         
         const std::string& getRawText() const { return this->text; }
+    
+    protected:
+        friend class Assembler;
     private:
         
         static std::regex decimalRegex;

@@ -11,8 +11,8 @@ namespace ss {
     public:
         Section() : Symbol() {}
         Section(size_t sectionSize, Access access) : sectionSize(sectionSize), access(access), Symbol() {}
-        Section(size_t sectionSize, Access access, std::string& name, std::string& section, unsigned int offset, bool local) 
-        : sectionSize(sectionSize), access(access), Symbol(name, section, offset, local) {} 
+        Section(size_t sectionSize, Access access, const std::string& name, SectionType section, unsigned int offset, bool local) 
+        : Symbol(name, section, offset, local), sectionSize(sectionSize), access(access) {} 
     
         size_t getSectionSize() const  {
             return sectionSize;

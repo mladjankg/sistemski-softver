@@ -7,7 +7,7 @@ std::regex Operand::decimalRegex("(^(-)?[0-9]+$)");
 std::regex Operand::regIndDecRegex("^r[0-7]\[[0-9]+\]$");
 std::regex Operand::regIndLabRegex("^r[0-7]\[[a-zA-Z_]\\w*\]$");
 std::regex Operand::regDirRegex("^r[0-7]$");
-std::regex Operand::labelRegex("^[a-zA-Z_]\\w*$");
+std::regex Operand::labelRegex("^(&|\\$)?[a-zA-Z_]\\w*$");
 std::regex Operand::locationRegex("^\\*[0-9]+$");
 
 Operand::Operand(std::string& op) : valid(true), text(op) {

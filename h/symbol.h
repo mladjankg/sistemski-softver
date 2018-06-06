@@ -11,12 +11,12 @@ namespace ss {
 
         }
 
-        Symbol(std::string& label, std::string& section, unsigned int offset, bool local) 
+        Symbol(const std::string& label, SectionType section, unsigned int offset, bool local) 
             : no(noCounter++), name(label), section(section), offset(offset), local(local) {
 
         }
 
-        const std::string getName() const {
+        const std::string& getName() const {
             return name;
         }
 
@@ -24,11 +24,11 @@ namespace ss {
             this->name = name; 
         }
 
-        const std::string& getSection() const {
+        const SectionType getSection() const {
             return section;
         }
 
-        void setSection(std::string& section) {
+        void setSection(SectionType section) {
             this->section = section;
         }
 
@@ -53,7 +53,7 @@ namespace ss {
         }
     private:
         std::string name;      //Label name
-        std::string section;    //Section name
+        SectionType section;    //Section name
         unsigned int offset;     //Offset from start of the section
         bool local;             //Is label local or global
         unsigned int no;        //Symbol identifier

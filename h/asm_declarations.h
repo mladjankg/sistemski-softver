@@ -1,3 +1,5 @@
+#ifndef _SS_ASM_DECLARATIONS_
+#define _SS_ASM_DECLARATIONS_
 //Instructions op codes.
 enum InstructionCode : char {
     ADD,
@@ -41,3 +43,13 @@ enum Access: char {
     RW,
     EX   
 };
+
+enum SectionType: char {
+    TEXT,
+    DATA,
+    RO_DATA,
+    BSS,
+    UDF
+};
+
+#endif

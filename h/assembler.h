@@ -12,6 +12,7 @@ namespace ss {
    
     using SymbolTable = std::unordered_map<std::string, Symbol*>;
     class Instruction;
+    class Section;
     
     class Assembler {
     public:
@@ -33,9 +34,11 @@ namespace ss {
         //Method that does the second pass.
         void secondPass();
 
-        void changeSection(const std::string& sectionName, Access access, int locationCounter, Section*& previousSection, Section*& currentSection);
+        void changeSection(const std::string& sectionName, SectionType sectionType, Access access, int locationCounter, Section*& previousSection, Section*& currentSection);
         
-        void parseDirective(const std::string& line, const int lineNumber, int& locationCounter);
+        void parseDirective(const std::string& line, const int lineNumber, int& locationCounter, Section* currentSection);
+        
+        std::string getParameters(const std::string line);
         
         void copy(const Assembler&);
 
@@ -50,6 +53,8 @@ namespace ss {
         std::unordered_map<int, std::string> lines;
         
         std::unordered_map<int, Instruction*> instructions;
+        
+        std::regex labelRegex;
     };
 }
 
