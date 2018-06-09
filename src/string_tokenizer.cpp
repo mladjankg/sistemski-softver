@@ -35,6 +35,7 @@ void StringTokenizer::tokenize(const std::string& str) {
     }
     else {
         tokens->push_back(formatted);
+        lastPos = pos;
     }
     
     if (lastPos < formatted.length() && lastPos != std::string::npos) {

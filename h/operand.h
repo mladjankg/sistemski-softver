@@ -2,6 +2,7 @@
 #define _SS_OPERAND_H_
 #include <string>
 #include <regex>
+#include "asm_declarations.h"
 
 namespace ss {
     class Assembler;
@@ -28,8 +29,10 @@ namespace ss {
             PCREL_VAL               // $x – PC relative addresing of variable x
         };
 
-        OperandType getType() const { return this->type; }
+        const OperandType getType() const { return this->type; }
         
+        const AddressingCode getAddressing() const { return this->addressing; }
+
         const std::string& getRawText() const { return this->text; }
     
     protected:
@@ -45,6 +48,7 @@ namespace ss {
 
         std::string text;
         OperandType type;
+        AddressingCode addressing;
         bool valid;
         bool extraBytes;
     };

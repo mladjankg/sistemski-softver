@@ -23,11 +23,13 @@ namespace ss {
 
     class AssemblingException: public std::exception {
     public:
-        AssemblingException(std::string line, int lineNumber);
+        AssemblingException(std::string msg) : message(msg) {}
+        
+        AssemblingException(std::string line, const int lineNumber);
 
         const char* what() const throw();
 
-        AssemblingException(std::string msg, std::string line, int lineNumber = 0);
+        AssemblingException(std::string msg, std::string line, const int lineNumber = 0);
         
         AssemblingException(const AssemblingException& ae);
         

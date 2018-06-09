@@ -5,6 +5,8 @@ using namespace ss;
 
 const std::string Utils::emptyChars = " \n\t\v\f\r";
 const std::string Utils::empty = "";
+std::regex Utils::labelRegex("^[a-zA-Z_]\\w*$");
+
 std::string& Utils::trim(std::string& str) {
     size_t front = str.find_first_not_of(Utils::emptyChars);
 
@@ -44,4 +46,21 @@ std::string& Utils::removeRepeatingChars(std::string& str, const std::string& ch
 
     str = str.substr(0, j);
     return str;
+}
+
+std::string Utils::removeEmptySpaces(const std::string& str) {
+    std::string newStr(str);
+
+    int j = 0;
+    for(int i = 0; i < str.size(); i++) {
+        if (Utils::emptyChars.find(str[i])) {
+            continue;
+        }
+
+        newStr[j++] = str[i];
+    }
+
+    newStr = newStr.substr(0, j);
+
+    return newStr;
 }

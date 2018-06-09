@@ -9,11 +9,20 @@ namespace ss {
     public:
         static std::string& trim(std::string& str);
     
+        static std::string trim(const std::string& str) {
+            std::string s(str);
+            return trim(s);
+        }
+        
         static const std::string emptyChars;
                 
         static std::string& removeRepeatingChars(std::string& str, const std::string& chars = emptyChars);
 
+        static std::string removeEmptySpaces(const std::string& str);
+        
         static const std::string empty;
+
+        static std::regex labelRegex;
     };
 }
 #endif

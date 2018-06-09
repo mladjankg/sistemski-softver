@@ -18,6 +18,10 @@ namespace ss {
             return sectionSize;
         }
         
+        void setSectionSize(size_t size) {
+            this->sectionSize = size;
+        } 
+
         Access getAccessRights() const {
             return access;
         }

@@ -12,21 +12,25 @@ std::regex Instruction::ne("(([A-Za-z]{2})|([A-Za-z]{3})|([A-Za-z]{4}))(ne$)");
 std::regex Instruction::gt("(([A-Za-z]{2})|([A-Za-z]{3})|([A-Za-z]{4}))(gt$)");
 std::regex Instruction::unc("(^(([A-Za-z]{2})|([A-Za-z]{3})|([A-Za-z]{4}))$)");
 
+const char Instruction::operandNumber[] = {2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 1, 1, 0, 2, 2, 2, 0, 1};
+
 void Instruction::parseInstruction(std::string line, int lineNumber) {
     
 
     size_t spPos = line.find_first_of(' ');
-
+    std::string operands(Utils::empty);
+    std::string mnemonic(Utils::empty);
     if (spPos == std::string::npos) {
         //ret, iret
-        size = 2;
+        this->size = 2;
+        mnemonic = line;
 
     }
-
-
-    std::string mnemonic = line.substr(0, spPos);
-    std::string operands = line.substr(spPos + 1);
-
+    else {
+        mnemonic = line.substr(0, spPos);
+        operands = line.substr(spPos + 1);
+    }
+    
     //Parsing instruction condition.    
     bool sufix = false;
     if (std::regex_match(mnemonic, al)) {
@@ -58,7 +62,7 @@ void Instruction::parseInstruction(std::string line, int lineNumber) {
     }   
     
     if (sufix) {
-        mnemonic = mnemonic.substr(0, line.length() - 2);
+        mnemonic = mnemonic.substr(0, mnemonic.length() - 2);
     }
 
     //Parsing instruction mnemonic
@@ -125,11 +129,16 @@ void Instruction::parseInstruction(std::string line, int lineNumber) {
                 instructionValid = true;
             }
             
-            else if (mnemonic.compare("ret") == 0) {
+            else if (mnemonic.compare("shr") == 0) {
                 this->instruction = InstructionCode::SHR;
                 instructionValid = true;
             }
 
+            else if (mnemonic.compare("jmp") == 0) {
+                this->instruction = InstructionCode::JMP;
+                instructionValid = true;
+            }
+            
             else if (mnemonic.compare("ret") == 0) {
                 this->instruction = InstructionCode::RET;
                 instructionValid = true;
@@ -162,16 +171,18 @@ void Instruction::parseInstruction(std::string line, int lineNumber) {
         throw AssemblingException("Unknown instruction", line, lineNumber);
     }
     
-    //Parsing operands  
+    //Parsing operands
     size_t commaPos;
     if ((commaPos = operands.find_first_of(',')) != std::string::npos) {
+        //Parsing operands
         StringTokenizer st(",");
         st.tokenize(operands);
 
-        if (st.tokenNumber() > 2) {
-            throw AssemblingException("Unknown instruction", line, lineNumber);
+        if (st.tokenNumber() != Instruction::operandNumber[this->instruction]) {
+            throw AssemblingException("Invalid argument number", line, lineNumber);
         }
         
+        //Parsing first operand.
         this->rawOperand1 = st.nextToken();
         this->rawOperand1 = Utils::trim(this->rawOperand1);
         if (this->rawOperand1.find_first_of(Utils::emptyChars) != std::string::npos) {
@@ -188,6 +199,7 @@ void Instruction::parseInstruction(std::string line, int lineNumber) {
             this->size = 4;
         }
         
+        //Parsing second operand.
         this->rawOperand2 = st.nextToken();
         this->rawOperand2 = Utils::trim(this->rawOperand2);
         if (this->rawOperand2.find_first_of(Utils::emptyChars) != std::string::npos) {
@@ -209,7 +221,19 @@ void Instruction::parseInstruction(std::string line, int lineNumber) {
         }
     }
     else {
+        //Checking if operands are passed, and if instruction accepts operands.
+        if (operands.find_first_not_of(Utils::emptyChars) == std::string::npos) {
+            
+        
+            if (0 == Instruction::operandNumber[this->instruction]) {
+                return;
+            }
+            else {
+                throw AssemblingException("Invalid argument number", line, lineNumber);
+            }
+        }
         operands = Utils::trim(operands);
+        
         if (operands.find_first_of(Utils::emptyChars) != std::string::npos) {
             throw AssemblingException("Syntax error", line, lineNumber);
         }

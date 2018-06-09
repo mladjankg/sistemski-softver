@@ -2,9 +2,10 @@
 #define _SS_SYMBOL_H_
 
 #include <string>
-
+#include "asm_declarations.h"
 namespace ss {
 
+    class Section;
     class Symbol {
     public:
         Symbol() : no(noCounter++) {
@@ -24,11 +25,11 @@ namespace ss {
             this->name = name; 
         }
 
-        const SectionType getSection() const {
+        const SectionType getSectionCode() const {
             return section;
         }
 
-        void setSection(SectionType section) {
+        void setSectionCode(SectionType section) {
             this->section = section;
         }
 
@@ -51,11 +52,21 @@ namespace ss {
         const unsigned int getNo() const {
             return no;
         }
+
+        Section* getSectionPtr() const {
+            return this->mySection;
+        }
+
+        void setSectionPtr(Section* section) { this->mySection = section; }
     private:
         std::string name;      //Label name
+
         SectionType section;    //Section name
+        Section* mySection = nullptr;     //Section that this symbol belongs
         unsigned int offset;     //Offset from start of the section
+
         bool local;             //Is label local or global
+
         unsigned int no;        //Symbol identifier
 
         static unsigned int noCounter;

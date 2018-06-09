@@ -23,7 +23,7 @@
         {
             "label": "run",
             "type": "shell",
-            "command": "./assembler",
+            "command": "./assembler input.asm output.asm",
             "problemMatcher": "$msCompile"
         }
 
