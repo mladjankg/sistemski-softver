@@ -25,11 +25,17 @@ void StringTokenizer::tokenize(const std::string& str) {
     pos = formatted.find(delimiter, lastPos);
     
     if (pos != std::string::npos) {
-        while ((pos != string::npos) && ((pos + 1) != formatted.length())) {
-            std::string token = formatted.substr(lastPos, pos - lastPos);
-            lastPos = pos + 1;
-            tokens->push_back(token);
+        while ((pos != string::npos)) {
 
+                std::string token = formatted.substr(lastPos, pos - lastPos);
+                tokens->push_back(token);
+                
+                if ((pos + 1) == formatted.length()) 
+                    tokens->push_back("");
+                lastPos = pos + 1;
+        
+            
+            
             pos = formatted.find(delimiter, lastPos);
         }
     }

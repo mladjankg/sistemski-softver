@@ -47,7 +47,7 @@ namespace ss {
             this->operands.push_back(op);
         }
         
-        const std::list<std::string> getOperands() const {
+        const std::list<std::string>& getOperands() const {
             return operands;
         }
 

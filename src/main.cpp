@@ -49,8 +49,8 @@ int main(int argc, const char* argv[]) {
         return -1;
     }
 
-    std::string input = std::string(argv[1]);
-    std::string output = std::string(argv[2]);
+    std::string input(argv[1]);
+    std::string output(argv[2]);
     
     //Creating assembler.
     try {
@@ -67,6 +67,10 @@ int main(int argc, const char* argv[]) {
     catch (StringTokenizerException e) {
         
     }
+
+    std::cout<<"\n==========END==========\n" << std::flush;
+
+    return 0;
 }
 
 

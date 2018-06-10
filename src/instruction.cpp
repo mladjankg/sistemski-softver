@@ -95,7 +95,7 @@ void Instruction::parseInstruction(std::string line, int lineNumber) {
             }
             
             else if (mnemonic.compare("pop") == 0) {
-                this->instruction = InstructionCode::CMP;
+                this->instruction = InstructionCode::POP;
                 instructionValid = true;
             }
             
@@ -258,6 +258,7 @@ void Instruction::parseInstruction(std::string line, int lineNumber) {
 
         //JMP is pseudo instruction that translates into add or mov depending on addressing.
         if (this->instruction == InstructionCode::JMP) {
+            this->size = 4;
             this->operand2 = this->operand1;
             if (this->operand2->getType() == OperandType::MEMDIR_VAL) {
                 this->instruction = InstructionCode::ADD_JMP;

@@ -25,6 +25,8 @@ namespace ss {
     class Instruction;
     class Section;
     class Directive;
+    class BWLDirective;
+    class Operand;
     
     class Assembler {
     public:
@@ -46,11 +48,13 @@ namespace ss {
         //Method that does the second pass.
         void secondPass();
 
+        void writeOutput();
         void changeSection(const std::string& sectionName, SectionType sectionType, Access access, int locationCounter, Section*& previousSection, Section*& currentSection);
         
         //Method that parse directive from line.
         void parseDirective(const std::string& line, const std::string& directive, const int lineNumber, int& locationCounter, Section* currentSection);
         
+
         //method that gets directive parameters
         std::string getParameters(const std::string line);
         
@@ -58,16 +62,18 @@ namespace ss {
         std::string getDirective(const std::string line) const;
         
         short resolveLabel(const size_t& locationCounter, Section* current, const std::string label, const int lineNumber, const bool pcRel = false);
-
+        short resolveDataLabel(const size_t& locationCounter, Section* current, const std::string label, BWLDirective* bwl, const int lineNumber);
         void assembleTextSection(Section* current, size_t& locationCounter);
+        
         void assembleDataSection(Section* current, size_t& locationCounter);
+        
         void assembleRODataSection(Section* current, size_t& locationCounter);
 
         void copy(const Assembler&);
 
         void move(Assembler&);
 
-        short getImmediateValue(const std::string strVal, short& immed);
+        bool getImmediateValue(const std::string strVal, short& immed);
 
         char getOperandCode(Operand* op, Section* current, Instruction* i, const size_t& locationCounter, short& secondHalf, const int lineNumber);
 
@@ -91,7 +97,12 @@ namespace ss {
 
         std::list<std::string> relROData;
 
+        std::string textOut;
+        std::string dataOut;
+        std::string roDataOut;
+
         SectionType sectionOrder[4] = {SectionType::UDF, SectionType::UDF, SectionType::UDF, SectionType::UDF};
+        char sectionCounter = 0;
         //std::regex labelRegex;
     };
 }

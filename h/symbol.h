@@ -2,6 +2,7 @@
 #define _SS_SYMBOL_H_
 
 #include <string>
+#include <iostream>
 #include "asm_declarations.h"
 namespace ss {
 
@@ -58,6 +59,9 @@ namespace ss {
         }
 
         void setSectionPtr(Section* section) { this->mySection = section; }
+
+        std::string toString() const;
+        friend std::ostream& operator<< (std::ostream& os, const Symbol& s);
     private:
         std::string name;      //Label name
 

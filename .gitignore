@@ -4,3 +4,6 @@ assembler
 .settings/language.settings.xml
 obj/*.o
 nbproject/*
+input.asm
+input.asm~
+output.asm

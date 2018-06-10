@@ -2,7 +2,9 @@
 #define _SS_ASM_DECLARATIONS_
 
 #define MAX_SHORT 0xFFFF
+#define MAX_BYTE_MASK 0xFFFFFF00
 #define LIMIT_MASK 0xFFFF0000
+#define FIELD_LENGTH 15
 //Instructions op codes.
 namespace ss {
     
@@ -59,11 +61,12 @@ namespace ss {
         UDF
     };
 
-    enum DirectiveType: char {
+    enum DirectiveType: char { //DO NOT CHANGE THE ORDER, IS USED FOR DETERMING DIRECTIVE SPACE IN MEMORY
         BYTE,
         WORD,
         LONG,
-        SKIP
+        SKIP,
+        ALIGN
     };
 
     enum OperandType {

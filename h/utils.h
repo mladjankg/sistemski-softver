@@ -22,7 +22,7 @@ namespace ss {
         
         static const std::string empty;
 
-        static std::regex labelRegex;
+        static std::regex labelRegex, decimalRegex;
     };
 }
 #endif
