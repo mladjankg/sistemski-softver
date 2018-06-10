@@ -4,6 +4,7 @@
 #include <list>
 #include <iterator>
 #include <iostream>
+#include <stdexcept>
 
 #include "assembler.h"
 #include "utils.h"
@@ -105,6 +106,7 @@ void Assembler::firstPass() {
             //Getting label name
             StringTokenizer st(":");
             st.tokenize(line);
+
             //Only one label can be defined in one line.
             if (st.tokenNumber() > 2 || st.tokenNumber() < 1) {
                 throw AssemblingException(line.c_str(), lineNumber);
@@ -114,6 +116,7 @@ void Assembler::firstPass() {
             SymbolTable::const_iterator it = this->symbolTable.find(token);
             
             bool undefined = false;
+
             //Checking if label was already defined. If it was defined in .global directive, we are only
             //changing it's entry in symbol table. If it was defined in some section, error is thrown.
             if (it != this->symbolTable.end() && currentSection != nullptr) {
@@ -121,6 +124,7 @@ void Assembler::firstPass() {
                     undefined = true;
                 }
                 else {
+
                     //Symbol is already defined.
                     throw AssemblingException(line.c_str(), lineNumber);
                 }
@@ -255,6 +259,7 @@ void Assembler::firstPass() {
                 i->parseInstruction(newLine, lineNumber);
 
                 this->instructions[lineNumber] = i;
+                
             }
             else {
                 throw AssemblingException("Assembling error", line, lineNumber);
@@ -458,6 +463,11 @@ void Assembler::secondPass() {
 }
 
 void Assembler::assembleTextSection(Section* current, size_t& locationCounter) {
+    
+    std::stringstream relStream;
+             
+    relStream << "#text";
+    
     for (auto it = this->instructions.begin(); it != this->instructions.end(); ++it) {
         Instruction* instr = it->second;
         
@@ -466,11 +476,11 @@ void Assembler::assembleTextSection(Section* current, size_t& locationCounter) {
         locationCounter += instr->getInstructionSize();
 
         //Writting condition code to the first part of instruction
-        short condCode =(short) instr->getCondition();
+        const short condCode =(short) instr->getCondition();
         firstHalf |= condCode << CONDITION_FLAGS_OFFSET;
 
         //Writting instruction code
-        short instrCode = (short) instr->getInstruciton();
+        const short instrCode = (instr->getInstruciton() != InstructionCode::ADD_JMP ? instr->getInstruciton() : InstructionCode::ADD);
         firstHalf |= instrCode << INSTRUCTION_FLAGS_OFFSET;
 
 
@@ -478,7 +488,7 @@ void Assembler::assembleTextSection(Section* current, size_t& locationCounter) {
 
             //Getting first operand            
             Operand* op1 = instr->getOperand1();
-            AddressingCode op1Addr = op1->getAddressing();
+            auto op1Addr = op1->getAddressing();
 
             //Only call is allowed to have first operand provided with immediate addressing.
             if ((op1->getAddressing() == op1Addr) && (instr->getInstruciton() == InstructionCode::CALL)) {
@@ -487,47 +497,367 @@ void Assembler::assembleTextSection(Section* current, size_t& locationCounter) {
             }
 
             //Writting addressing flags
-            short addrCode = (short) op1Addr;
-            firstHalf |= instrCode << ADDRESSING_FLAGS_OFFSET;
+            short addrCode = op1Addr;
+            firstHalf |= addrCode << OP1_ADDRESSING_FLAGS_OFFSET;
 
-            const std::string op1Raw = op1->getRawText();
+            char op1Flags = this->getOperandCode(op1, current, instr, locationCounter, secondHalf, it->first);
 
-            if (op1Addr == AddressingCode::REGDIR) {
-                short regNum = op1Raw[1] - 0;
-                firstHalf |= regNum << 5;
+            firstHalf |= op1Flags << 5;
+
+            Operand* op2 = instr->getOperand2();
+            
+            if (op2 != nullptr) {
+                auto op2Addr = op2->getAddressing();
+
+                addrCode = op1Addr;
+                firstHalf |= addrCode << OP2_ADDRESSING_FLAGS_OFFSET;
+
+                char op2Flags = this->getOperandCode(op1, current, instr, locationCounter, secondHalf, it->first);
+                firstHalf |= op1Flags;
             }
+            // const std::string op1Raw = op1->getRawText();
 
-            else if (op1Addr == AddressingCode::IMMED) {
+            // switch(op1Addr) {
+            //     case AddressingCode::REGDIR: {
+            //         short regNum = op1Raw[1] - 0;
+            //         firstHalf |= regNum << 5;
+            //     }
 
-            }
+            //     case AddressingCode::IMMED: {
+            //         if (op1->getType() == OperandType::IMMED_VAL) {
+                        
+            //             short val = 0;
 
-            else if (op1Addr == AddressingCode::MEMDIR) {
+            //             if (!this->getImmediateValue(op1Raw, val)) {
+            //                 std::string line = this->lines[it->first];
+            //                 throw AssemblingException("Argument out of bounds", line, it->first);
+            //             }
 
-            }
-            else { //REGINDPOM
+            //             secondHalf = SWAP_BYTES((short)val);
+            //         }
+            //         else if (op1->getType() == OperandType::LABEL_VAL) {
+            //             std::string label = op1Raw.substr(1);
 
-            }
+            //             short offset = this->resolveLabel(locationCounter, current, label, it->first);
+
+            //             secondHalf = SWAP_BYTES(offset);
+            //         }
+            //         break;
+            //     }
+
+            //     case AddressingCode::MEMDIR: {
+            //         if (op1->getType() == OperandType::MEMDIR_VAL) {
+            //             short offset = this->resolveLabel(locationCounter, current, op1Raw, it->first, instr->getInstruciton() == InstructionCode::ADD_JMP);
+
+            //             secondHalf = SWAP_BYTES(offset);
+            //         }
+
+            //         else if (op1->getType() == OperandType::DECIMAL_LOCATION_VAL) {
+            //             short val = 0;
+
+            //             if (!this->getImmediateValue(op1Raw.substr(1), val)) {
+            //                 std::string line = this->lines[it->first];
+            //                 throw AssemblingException("Argument out of bounds", line, it->first);
+            //             }
+
+            //             secondHalf = SWAP_BYTES((short)val);
+            //         }
+            //     }
+
+            //     case AddressingCode::REGINDPOM: {
+            //         size_t leftBracket = op1Raw.find_first_of('[');
+            //         std::string reg;
+            //         std::string off;
+
+            //         if (op1->getType() == OperandType::PCREL_VAL) {
+            //             char regNum = 7;
+            //             off = op1Raw.substr(1);
+
+            //             short offset = this->resolveLabel(locationCounter, current, op1Raw, it->first, true);
+            //             secondHalf = SWAP_BYTES(offset);
+            //         }
+
+            //         else {
+            //             reg = op1Raw.substr(0, leftBracket);
+            //             off = op1Raw.substr(leftBracket + 1, op1Raw.find_first_of(']') - leftBracket - 1);
+                        
+            //             if (op1->getType() == OperandType::REGIND_DEC_VAL) {
+            //                 short val = 0;
+
+            //                 if (!this->getImmediateValue(off, val)) {
+            //                     std::string line = this->lines[it->first];
+            //                     throw AssemblingException("Argument out of bounds", line, it->first);
+            //                 }
+
+            //                 secondHalf = SWAP_BYTES((short)val);
+            //             }
+
+            //             if (op1->getType() == OperandType::REGIND_LAB_VAL) {
+            //                 short offset = this->resolveLabel(locationCounter, current, op1Raw, it->first);
+
+            //                 secondHalf = SWAP_BYTES(offset);
+            //             }
+            //         }
+            //     }
+            // }
         } 
     }
 }
 
-size_t Assembler::resolveLabel(const size_t& locationCounter, Section* current, const std::string label) {
+char Assembler::getOperandCode(Operand* op, Section* current, Instruction* instr,  const size_t& locationCounter, short& secondHalf, const int lineNumber) {
+
+    AddressingCode op1Addr = op->getAddressing();
+    const std::string op1Raw = op->getRawText();
+    char firstHalf = 0;
+    switch(op1Addr) {
+        case AddressingCode::REGDIR: {
+            char regNum = op1Raw[1] - '0';
+            firstHalf = regNum;
+            break;
+        }
+    
+        case AddressingCode::IMMED: {
+            if (op->getType() == OperandType::IMMED_VAL) {
+
+                short val = 0;
+                if (!this->getImmediateValue(op1Raw, val)) {
+                    std::string line = this->lines[lineNumber];
+                    throw AssemblingException("Argument out of bounds", line, lineNumber);
+                }
+
+                secondHalf = SWAP_BYTES((short)val);
+            }
+            else if (op->getType() == OperandType::LABEL_VAL) {
+                std::string label = op1Raw.substr(1);
+
+                short offset = this->resolveLabel(locationCounter, current, label, lineNumber);
+
+                secondHalf = SWAP_BYTES(offset);
+            }
+            break;
+        }
+
+        case AddressingCode::MEMDIR: {
+            if (op->getType() == OperandType::MEMDIR_VAL) {
+                short offset = this->resolveLabel(locationCounter, current, op1Raw, lineNumber, instr->getInstruciton() == InstructionCode::ADD_JMP);
+
+                secondHalf = SWAP_BYTES(offset);
+            }
+
+            else if (op->getType() == OperandType::DECIMAL_LOCATION_VAL) {
+                short val = 0;
+
+                if (!this->getImmediateValue(op1Raw.substr(1), val))
+                {
+                    std::string line = this->lines[lineNumber];
+                    throw AssemblingException("Argument out of bounds", line, lineNumber);
+                }
+
+                secondHalf = SWAP_BYTES((short)val);
+            }
+        }
+
+        case AddressingCode::REGINDPOM: {
+            size_t leftBracket = op1Raw.find_first_of('[');
+            std::string reg;
+            std::string off;
+            char regNum = 0;
+            
+            if (op->getType() == OperandType::PCREL_VAL) {
+                regNum = 7;
+                off = op1Raw.substr(1);
+
+                short offset = this->resolveLabel(locationCounter, current, op1Raw, lineNumber, true);
+                secondHalf = SWAP_BYTES(offset);
+            }
+
+            else {
+                reg = op1Raw.substr(0, leftBracket);
+                off = op1Raw.substr(leftBracket + 1, op1Raw.find_first_of(']') - leftBracket - 1);
+
+                regNum = reg[1] - '0';
+                if (op->getType() == OperandType::REGIND_DEC_VAL) {
+                    short val = 0;
+
+                    if (!this->getImmediateValue(off, val)) {
+                        std::string line = this->lines[lineNumber];
+                        throw AssemblingException("Argument out of bounds", line, lineNumber);
+                    }
+
+                    secondHalf = SWAP_BYTES((short)val);
+                }
+
+                if (op->getType() == OperandType::REGIND_LAB_VAL) {
+                    short offset = this->resolveLabel(locationCounter, current, op1Raw, lineNumber);
+
+                    secondHalf = SWAP_BYTES(offset);
+                }
+            }
+
+            firstHalf = regNum;
+        }
+    }
+
+    return firstHalf;
+}
+bool getImmediateValue(const std::string strVal, short& immed) {
+    int val = 0;
+
+    try {
+        val = std::stoi(strVal);
+    }
+    catch (std::invalid_argument e) {
+        return false;
+    }
+
+    if (val & LIMIT_MASK) {
+        return false;
+    }
+
+    immed = (short)val;
+    return true;
+}
+
+short Assembler::resolveLabel(const size_t& locationCounter, Section* current, const std::string label, const int lineNumber, const bool pcRel) {
     Symbol* s = this->symbolTable[label];
 
-    size_t offset = 0;
-    if (s->getSectionCode() == current->getSectionCode()) {
-        offset = s->getOffset() - locationCounter;
+    short offset = 0;
+
+    if (pcRel) {
+        if (current->getSectionCode() != SectionType::TEXT) {
+            std::string line = this->lines[lineNumber];
+            throw AssemblingException("Cannot have PC relative addressing outside text section", line, lineNumber);
+        }
+
+        if (s->getSectionCode() == current->getSectionCode()) {
+            offset = s->getOffset() - locationCounter;
+        }
+
+        else {
+            short relOffset = locationCounter - 2;
+
+            if (s->isLocal()) {
+                offset = s->getOffset() - s->getSectionPtr()->getOffset() - 2;
+                s = s->getSectionPtr();
+            }
+            
+            else {
+                offset = -2;
+            }
+
+            std::stringstream relStream;
+             
+            relStream << std::hex << relOffset << "\t" << "R_386_PC16" << "\t" << s->getNo();
+            std::string relocationRecord(relStream.str());
+
+            this->relText.push_back(relocationRecord);
+        }
     }
     else {
-        if (s->getSectionCode() == SectionType::UDF) {
-            offset = -2;
+        short relOffset = locationCounter - 2;
+
+        if (s->isLocal()) {
+            offset = s->getOffset() - s->getSectionPtr()->getOffset();
+            s = s->getSectionPtr();
         }
         else {
-            size_t sectionOffset = s->getOffset() - s->getSectionPtr()->getOffset();
-            offset = sectionOffset - 2;
-
+            offset = 0;
         }
+
+        std::stringstream relStream;
+             
+        relStream << std::hex << relOffset << "\t" << "R_386_16" << "\t" << s->getNo();
+        std::string relocationRecord(relStream.str());
+
+        this->relText.push_back(relocationRecord);
     }
+    // if (s->getSectionCode() == current->getSectionCode()) {
+    //     if (s->getSectionCode() == SectionType::TEXT) {
+    //         offset = s->getOffset() - locationCounter;
+    //     }
+    //     else {
+    //         offset = 0;
+    //         Directive* d = nullptr;
+
+    //         if (s->getSectionCode() == SectionType::RO_DATA) {
+    //             d = this->roData[lineNumber];
+    //         }
+
+    //         else if (s->getSectionCode() == SectionType::DATA) {
+    //             d = this->data[lineNumber];
+    //         }
+
+    //         if (d == nullptr) {
+    //             throw AssemblingException("Unknown second pass error at resolveLabel");
+    //         }
+
+    //         std::string relType;
+    //         if (d->getType() == DirectiveType::BYTE) {
+    //             relType = "R_386_8";
+    //         }
+    //         else {
+    //             relType = "R_386_16";
+    //         }
+
+    //         size_t sectionOffset = s->getOffset() - s->getSectionPtr()->getOffset();
+
+    //         short shortOffset = (short)sectionOffset;
+    //         std::stringstream relStream;
+             
+    //         relStream << std::hex << shortOffset << "\t" << relType << "\t" << s->getNo();
+
+    //         std::string relocationRecord(relStream.str());
+
+    //         if (s->getSectionCode() == SectionType::RO_DATA) {
+    //             this->relROData.push_back(relocationRecord);
+    //         }
+    //         else {
+    //             this->relData.push_back(relocationRecord);
+    //         }
+    //     }
+    // }
+    // else {
+    //     std::string relType;
+    //     size_t sectionOffset;
+
+    //     //Symbol is extern
+    //     if (s->getSectionCode() == SectionType::UDF) {
+    //         if (current->getSectionCode() == SectionType::TEXT && pcRel) {
+    //             offset = -2;
+    //             relType = "R_386_PC16";
+    //         }
+    //         else {
+    //             offset = 0;
+    //             relType = "R_386_16";
+    //         }
+    //     }
+    //     //Symbol is not extern
+    //     else {
+    //         if (s->isLocal()) {
+    //             if (current->getSectionCode() == SectionType::TEXT && pcRel) {
+                
+    //             }
+    //             else {
+                
+    //             }
+                
+    //             sectionOffset = s->getOffset() - s->getSectionPtr()->getOffset();
+    //             offset = sectionOffset - 2;
+    //         }
+    //         else {
+    //             if (current->getSectionCode() == SectionType::TEXT && pcRel) {
+    //                 offset = -2;
+    //                 relType = "R_386_PC16";
+    //             }
+    //             else {
+    //                 offset = 0;
+    //                 relType = "R_386_16";
+    //             }
+    //         }
+            
+
+    //     }
+    // }
 
     return offset;
 }

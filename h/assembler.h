@@ -13,7 +13,10 @@
 #define SECTION_NUMBER 4
 #define CONDITION_FLAGS_OFFSET 14
 #define INSTRUCTION_FLAGS_OFFSET 10
-#define ADDRESSING_FLAGS_OFFSET 8
+#define OP1_ADDRESSING_FLAGS_OFFSET 8
+#define OP2_ADDRESSING_FLAGS_OFFSET 3
+
+#define SWAP_BYTES(x) (((x << 8) & 0xFF00) | ((x >> 8) & 0xFF))
 
 namespace ss {
     
@@ -54,7 +57,7 @@ namespace ss {
         //Method that gets directive.
         std::string getDirective(const std::string line) const;
         
-        size_t resolveLabel(const size_t& locationCounter, Section* current, const std::string label);
+        short resolveLabel(const size_t& locationCounter, Section* current, const std::string label, const int lineNumber, const bool pcRel = false);
 
         void assembleTextSection(Section* current, size_t& locationCounter);
         void assembleDataSection(Section* current, size_t& locationCounter);
@@ -63,6 +66,10 @@ namespace ss {
         void copy(const Assembler&);
 
         void move(Assembler&);
+
+        short getImmediateValue(const std::string strVal, short& immed);
+
+        char getOperandCode(Operand* op, Section* current, Instruction* i, const size_t& locationCounter, short& secondHalf, const int lineNumber);
 
         std::ifstream *input;
 
@@ -81,6 +88,8 @@ namespace ss {
         std::list<std::string> relData;
 
         std::list<std::string> relText;
+
+        std::list<std::string> relROData;
 
         SectionType sectionOrder[4] = {SectionType::UDF, SectionType::UDF, SectionType::UDF, SectionType::UDF};
         //std::regex labelRegex;

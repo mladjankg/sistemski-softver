@@ -9,7 +9,8 @@ namespace ss {
     
     class Operand {
     public:
-        Operand(std::string&);
+
+        Operand(const std::string);
 
         Operand(Operand&) = delete;
         Operand(Operand&&) = delete;
@@ -17,17 +18,6 @@ namespace ss {
         bool isValid() const { return valid; }
 
         bool requiresExtraBytes() const { return extraBytes; }
-
-        enum OperandType {
-            IMMED_VAL,              // 20 – immediate value 20
-            LABEL_VAL,              // &x – value of symbol x
-            MEMDIR_VAL,             // x – memory direct addressing
-            DECIMAL_LOCATION_VAL,   // *20 – location from addres 20
-            REGDIR_VAL,             // r3 – register direct
-            REGIND_DEC_VAL,         // r4[32] – register indirect with immediate offset
-            REGIND_LAB_VAL,         // r5[x] – register indirect with variable offset
-            PCREL_VAL               // $x – PC relative addresing of variable x
-        };
 
         const OperandType getType() const { return this->type; }
         

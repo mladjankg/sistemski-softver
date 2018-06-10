@@ -12,7 +12,7 @@ std::regex Instruction::ne("(([A-Za-z]{2})|([A-Za-z]{3})|([A-Za-z]{4}))(ne$)");
 std::regex Instruction::gt("(([A-Za-z]{2})|([A-Za-z]{3})|([A-Za-z]{4}))(gt$)");
 std::regex Instruction::unc("(^(([A-Za-z]{2})|([A-Za-z]{3})|([A-Za-z]{4}))$)");
 
-const char Instruction::operandNumber[] = {2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 1, 1, 0, 2, 2, 2, 0, 1};
+const char Instruction::operandNumber[] = {2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 1, 1, 0, 2, 2, 2, 0, 1, 2};
 
 void Instruction::parseInstruction(std::string line, int lineNumber) {
     
@@ -226,6 +226,13 @@ void Instruction::parseInstruction(std::string line, int lineNumber) {
             
         
             if (0 == Instruction::operandNumber[this->instruction]) {
+
+                //Instruction ret is pseudo instruction that translates into pop pc.
+                if (this->instruction == InstructionCode::RET) {
+                    this->instruction = InstructionCode::POP;
+                    this->operand1 = new Operand("r7"); //r7 <=> PC
+                }
+                
                 return;
             }
             else {
@@ -248,6 +255,21 @@ void Instruction::parseInstruction(std::string line, int lineNumber) {
         if (this->operand1->requiresExtraBytes()) {
             this->size = 4;
         }
+
+        //JMP is pseudo instruction that translates into add or mov depending on addressing.
+        if (this->instruction == InstructionCode::JMP) {
+            this->operand2 = this->operand1;
+            if (this->operand2->getType() == OperandType::MEMDIR_VAL) {
+                this->instruction = InstructionCode::ADD_JMP;
+            }
+            else {
+                this->instruction = InstructionCode::MOV;
+            }
+
+            this->operand1 = new Operand(std::string("r7")); //r7 <=> PC
+        }
+
+
     }
 
     

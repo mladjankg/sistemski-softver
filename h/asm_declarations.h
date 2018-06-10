@@ -2,6 +2,7 @@
 #define _SS_ASM_DECLARATIONS_
 
 #define MAX_SHORT 0xFFFF
+#define LIMIT_MASK 0xFFFF0000
 //Instructions op codes.
 namespace ss {
     
@@ -23,7 +24,8 @@ namespace ss {
         SHL,
         SHR,
         RET,
-        JMP
+        JMP,
+        ADD_JMP //One implementation of JMP, other is with mov
     };
 
     //Addressing codes
@@ -62,6 +64,17 @@ namespace ss {
         WORD,
         LONG,
         SKIP
+    };
+
+    enum OperandType {
+        IMMED_VAL,            // 20 – immediate value 20
+        LABEL_VAL,            // &x – value of symbol x
+        MEMDIR_VAL,           // x – memory direct addressing
+        DECIMAL_LOCATION_VAL, // *20 – location from addres 20
+        REGDIR_VAL,           // r3 – register direct
+        REGIND_DEC_VAL,       // r4[32] – register indirect with immediate offset
+        REGIND_LAB_VAL,       // r5[x] – register indirect with variable offset
+        PCREL_VAL             // $x – PC relative addresing of variable x
     };
 }
 #endif

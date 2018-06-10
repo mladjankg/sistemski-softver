@@ -12,7 +12,7 @@ std::regex Operand::regDirRegex("^r[0-7]$");
 std::regex Operand::labelRegex("^(&|\\$)?[a-zA-Z_]\\w*$");
 std::regex Operand::locationRegex("^\\*[0-9]+$");
 
-Operand::Operand(std::string& op) : valid(true), text(op) {
+Operand::Operand(const std::string op) : valid(true), text(op) {
 
     bool regDir = std::regex_match(op, regDirRegex);
     bool regIndLab = std::regex_match(op, regIndLabRegex);
