@@ -6,6 +6,8 @@
 #include <exception>
 #include <map>
 #include <list>
+#include <vector>
+
 #include "symbol.h"
 #include "ss_exceptions.h"
 #include "asm_declarations.h"
@@ -27,20 +29,21 @@ namespace ss {
     class Directive;
     class BWLDirective;
     class Operand;
-    
+    class Relocation;
+
     class Assembler {
     public:
         Assembler(Assembler&& a);
 
         void assemble();
 
-        static Assembler getInstance(std::string& inputFile, std::string& outputFile);
+        static Assembler getInstance(std::string& inputFile, std::string& outputFile, unsigned short startAddress);
 
         ~Assembler();
     private:
 
         //Private constructor for controlled creation of assembler.
-        Assembler(std::ifstream* in, std::ofstream* out);
+        Assembler(std::ifstream* in, std::ofstream* out, unsigned short startAddress);
 
         //Method that does the first pass.
         void firstPass();
@@ -49,6 +52,9 @@ namespace ss {
         void secondPass();
 
         void writeOutput();
+
+        void writePrettyOutput();
+
         void changeSection(const std::string& sectionName, SectionType sectionType, Access access, int locationCounter, Section*& previousSection, Section*& currentSection);
         
         //Method that parse directive from line.
@@ -61,16 +67,14 @@ namespace ss {
         //Method that gets directive.
         std::string getDirective(const std::string line) const;
         
-        short resolveLabel(const size_t& locationCounter, Section* current, const std::string label, const int lineNumber, const bool pcRel = false);
+        short resolveLabel(const size_t& locationCounter, Section* current, const std::string label, const int lineNumber, const bool pcRel = false);      
         short resolveDataLabel(const size_t& locationCounter, Section* current, const std::string label, BWLDirective* bwl, const int lineNumber);
-        void assembleTextSection(Section* current, size_t& locationCounter);
         
-        void assembleDataSection(Section* current, size_t& locationCounter);
-        
+        void assembleTextSection(Section* current, size_t& locationCounter);       
+        void assembleDataSection(Section* current, size_t& locationCounter);      
         void assembleRODataSection(Section* current, size_t& locationCounter);
 
         void copy(const Assembler&);
-
         void move(Assembler&);
 
         bool getImmediateValue(const std::string strVal, short& immed);
@@ -78,24 +82,27 @@ namespace ss {
         char getOperandCode(Operand* op, Section* current, Instruction* i, const size_t& locationCounter, short& secondHalf, const int lineNumber);
 
         std::ifstream *input;
-
         std::ofstream *output;
+        short startAddress;
 
         std::map<std::string, Symbol*> symbolTable;
         
-        std::map<int, std::string> lines;
-        
-        std::map<int, Instruction*> instructions;
-        
+        std::map<int, std::string> lines;        
+        std::map<int, Instruction*> instructions;        
         std::map<int, Directive*> data;
-
         std::map<int, Directive*> roData;
         
-        std::list<std::string> relData;
+        std::vector<char> textBin;
+        std::vector<char> dataBin;
+        std::vector<char> roDataBin;
 
-        std::list<std::string> relText;
+        std::vector<Relocation> relText;
+        std::vector<Relocation> relData;
+        std::vector<Relocation> relROData;
 
-        std::list<std::string> relROData;
+        std::list<std::string> txtRelData;
+        std::list<std::string> txtRelText;
+        std::list<std::string> txtRelROData;
 
         std::string textOut;
         std::string dataOut;

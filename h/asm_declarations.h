@@ -58,6 +58,7 @@ namespace ss {
         DATA,
         RO_DATA,
         BSS,
+        STR_TAB,
         UDF
     };
 
@@ -69,7 +70,7 @@ namespace ss {
         ALIGN
     };
 
-    enum OperandType {
+    enum OperandType : char {
         IMMED_VAL,            // 20 – immediate value 20
         LABEL_VAL,            // &x – value of symbol x
         MEMDIR_VAL,           // x – memory direct addressing
@@ -78,6 +79,12 @@ namespace ss {
         REGIND_DEC_VAL,       // r4[32] – register indirect with immediate offset
         REGIND_LAB_VAL,       // r5[x] – register indirect with variable offset
         PCREL_VAL             // $x – PC relative addresing of variable x
+    };
+
+    enum RelocationType : char {
+        R_386_PC16,
+        R_386_16,
+        R_386_32
     };
 }
 #endif

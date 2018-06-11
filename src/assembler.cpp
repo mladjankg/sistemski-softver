@@ -18,10 +18,12 @@
 #include "section.h"
 #include "directive.h"
 #include "asm_declarations.h"
+#include "relocation.h"
+#include "elf.h"
 
 using namespace ss;
 
-Assembler::Assembler(std::ifstream* in, std::ofstream* out) : input(in), output(out) {
+Assembler::Assembler(std::ifstream* in, std::ofstream* out, unsigned short start) : input(in), output(out), startAddress(start) {
 
 }
 
@@ -35,7 +37,7 @@ void Assembler::move(Assembler& a) {
     this->symbolTable = a.symbolTable;
 }
 
-Assembler Assembler::getInstance(std::string& inputFile, std::string& outputFile) {
+Assembler Assembler::getInstance(std::string& inputFile, std::string& outputFile, unsigned short startAddress) {
     
     //Creating input stream.
     std::ifstream* in = new std::ifstream(inputFile, std::ifstream::in);
@@ -61,10 +63,10 @@ Assembler Assembler::getInstance(std::string& inputFile, std::string& outputFile
         throw FileException(message.c_str());
     }
     
-    return Assembler(in, out);
+    return Assembler(in, out, startAddress);
 }
 
-void Assembler::writeOutput() {
+void Assembler::writePrettyOutput() {
     bool hasText = false;
     bool hasRoData = false;
     bool hasData = false;
@@ -104,43 +106,155 @@ void Assembler::writeOutput() {
         }
     }
     
-    if (hasText && this->relText.size() != 0) {
+    if (hasText && this->txtRelText.size() != 0) {
         *this->output << "#.ret.text" << std::endl 
                       << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << "offset" 
                       << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << "tip" 
                       << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << "vr" << std::endl; 
 
-        for(auto line:this->relText) {
+        for(auto line:this->txtRelText) {
             *this->output << line << std::endl;
         }
     }
 
-    if (hasRoData && this->relROData.size() != 0) {
+    if (hasRoData && this->txtRelROData.size() != 0) {
         *this->output << "#.ret.rodata" << std::endl 
                       << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << "offset" 
                       << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << "tip" 
                       << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << "vr" << std::endl; 
-        for(auto line:this->relROData) {
+        for(auto line:this->txtRelROData) {
             *this->output << line << std::endl;
         }
     }
 
-    if (hasData && this->relData.size() != 0) {
+    if (hasData && this->txtRelData.size() != 0) {
         *this->output << "#.ret.data" << std::endl 
                       << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << "offset" 
                       << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << "tip" 
                       << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << "vr" << std::endl;  
-        for(auto line:this->relData) {
+        for(auto line:this->txtRelData) {
             *this->output << line << std::endl;
         }
     }
 
 }
 
+void Assembler::writeOutput() {
+    ELFHeader header;
+    header.entry = this->startAddress;
+
+    ElfWord maxSecSize = MAX_SHORT;
+
+    size_t currentOffset = sizeof(ELFHeader);
+
+    bool hasText = false, 
+         hasData = false, 
+         hasRoData = false, 
+         hasBss = false;
+    
+    SectionHeader *textHd = nullptr,
+                  *dataHd = nullptr,
+                  *roDataHd = nullptr,
+                  *bssHd = nullptr,
+                  *strTabHd = nullptr,
+                  *symTabHd = nullptr;
+
+    for(int i = 0; i < SECTION_NUMBER && this->sectionOrder[i] != SectionType::UDF; ++i) {
+        if (this->sectionOrder[i] == SectionType::TEXT) 
+            hasText = true;
+
+        if (this->sectionOrder[i] == SectionType::RO_DATA)
+            hasRoData = true;
+        
+        if (this->sectionOrder[i] == SectionType::DATA)
+            hasData = true;
+        
+        if (this->sectionOrder[i] == SectionType::BSS)
+            hasBss = true;
+    }
+
+    if (hasText) {
+        size_t size = this->textBin.size();
+        if (size > maxSecSize) {
+            throw AssemblingException("Section text exceeds maximum allowed size.");
+        }
+
+        Section *s = (Section*)this->symbolTable[".text"];
+
+        textHd = &SectionHeader(s->getSectionCode(), s->getAccessRights(), currentOffset, (ElfWord)size, s->getAlign(), 0);
+
+        currentOffset += textHd->size;
+
+        if (currentOffset > maxSecSize) {
+            throw AssemblingException("Output file exceeds maximum allowed size.");
+        }
+    }
+
+    if (hasRoData) {
+        size_t size = this->textBin.size();
+        if (size > maxSecSize) {
+            throw AssemblingException("Section rodata exceeds maximum allowed size.");
+        }
+
+        Section *s = (Section*)this->symbolTable[".rodata"];
+
+        roDataHd = &SectionHeader(s->getSectionCode(), s->getAccessRights(), currentOffset, (ElfWord)size, s->getAlign(), 0);
+
+        currentOffset += roDataHd->size;
+
+        if (currentOffset > maxSecSize) {
+            throw AssemblingException("Output file exceeds maximum allowed size.");
+        }
+    }
+
+    if (hasData) {
+        size_t size = this->textBin.size();
+        if (size > maxSecSize) {
+            throw AssemblingException("Section data exceeds maximum allowed size.");
+        }
+
+        Section *s = (Section*)this->symbolTable[".data"];
+
+        dataHd = &SectionHeader(s->getSectionCode(), s->getAccessRights(), currentOffset, (ElfWord)size, s->getAlign(), 0);
+        
+        currentOffset += dataHd->size;
+
+        if (currentOffset > maxSecSize) {
+            throw AssemblingException("Output file exceeds maximum allowed size.");
+        }
+    }
+
+    if (hasBss) {
+        size_t size = this->textBin.size();
+        if (size > maxSecSize) {
+            throw AssemblingException("Section bss exceeds maximum allowed size.");
+        }
+
+        Section *s = (Section*)this->symbolTable[".bss"];
+
+        bssHd = &SectionHeader(s->getSectionCode(), s->getAccessRights(), currentOffset, (ElfWord)size, s->getAlign(), 0);
+        
+        currentOffset += bssHd->size;
+
+        if (currentOffset > maxSecSize) {
+            throw AssemblingException("Output file exceeds maximum allowed size.");
+        }
+    }
+
+
+    for(auto it = this->symbolTable.begin(); it != this->symbolTable.end(); ++it) {
+        Symbol* s = it->second;
+
+        
+    }
+
+
+}
+
 void Assembler::assemble() {
     this->firstPass();
     this->secondPass();
-    this->writeOutput();
+    this->writePrettyOutput();
 }
     
 void Assembler::firstPass() {
@@ -478,7 +592,6 @@ void Assembler::parseDirective(const std::string& line, const std::string& direc
     }
 }
 
-
 void Assembler::changeSection(const std::string& sectionName, SectionType sectionType, Access access, int locationCounter, Section*& previousSection, Section*& currentSection) {
     
     size_t sectionSize = previousSection ? locationCounter - previousSection->getSectionSize() : locationCounter;
@@ -528,8 +641,6 @@ std::string Assembler::getDirective(const std::string line) const {
     return newLine.substr(0, spacePos);
  
 }
-
-
 
 void Assembler::secondPass() {
     Section* currentSection = nullptr;
@@ -621,22 +732,26 @@ void Assembler::assembleTextSection(Section* current, size_t& locationCounter) {
             }
         }
 
-        int byte = firstHalf >> 8 & 0xFF;
+        char byte = (char)(firstHalf >> 8 & 0xFF);
         if (!(byte & 0xF0)) relStream << '0';
         relStream << std::hex << byte << " ";
+        this->textBin.push_back(byte);
 
-        byte = firstHalf && 0xFF;
+        byte = (char)(firstHalf && 0xFF);
         if (!(byte & 0xF0)) relStream << '0';
         relStream << std::hex << byte << " ";
+        this->textBin.push_back(byte);
 
         if (instr->getInstructionSize() == 4) {
-            byte = (secondHalf >> 8) & 0xFF;
+            byte = (char)((secondHalf >> 8) & 0xFF);
             if (!(byte & 0xF0)) relStream << '0';
             relStream << std::hex << byte << " ";
-
-            byte = secondHalf & 0xFF;
+            this->textBin.push_back(byte);
+            
+            byte = (char)(secondHalf & 0xFF);
             if (!(byte & 0xF0)) relStream << '0';
             relStream << std::hex << byte << " ";
+            this->textBin.push_back(byte);
         }
 
         std::cout << std::flush;
@@ -649,13 +764,16 @@ void Assembler::assembleDataSection(Section* current, size_t& locationCounter) {
     std::stringstream relStream;
 
     std::map<int, Directive*> *section;
+    std::vector<char> *binData;
     if (current->getSectionCode() == SectionType::RO_DATA) {
         relStream << "#rodata\n";
         section = &this->roData;
+        binData = &this->roDataBin;
     }
     else if (current->getSectionCode() == SectionType::DATA) {
         relStream << "#data\n";
         section = &this->data;
+        binData = &this->dataBin;
     }
     else {
         throw AssemblingException("Unsupported section in method assembleDataSection");
@@ -673,8 +791,10 @@ void Assembler::assembleDataSection(Section* current, size_t& locationCounter) {
             SkipDirective* sd = (SkipDirective*)d;
 
             unsigned int size = sd->getOffset();
+            char t = 0;
             for (int i = 0; i < size; ++i) {
                 relStream << "00 ";
+                binData->push_back(t);
             }
             locationCounter += size;
         }
@@ -699,7 +819,7 @@ void Assembler::assembleDataSection(Section* current, size_t& locationCounter) {
                             if (val & MAX_BYTE_MASK) valid = false; 
                             else {
                                 relStream << std::setfill('0') << std::setw(2) << std::hex << val << ' ';
-                                
+                                binData->push_back((char)val);
                             }
                         }
 
@@ -707,17 +827,25 @@ void Assembler::assembleDataSection(Section* current, size_t& locationCounter) {
                             if (val & LIMIT_MASK) valid = false;
                             else {
                                 relStream << std::setfill('0') << std::setw(2) << std::hex << (val & 0xFF) << ' ';
-                                relStream << std::setfill('0') << std::setw(2) << std::hex << (val >> 8) << ' ';
+                                binData->push_back((char)(val & 0xFF));
                                 
+                                relStream << std::setfill('0') << std::setw(2) << std::hex << (val >> 8) << ' ';
+                                binData->push_back((char)(val >> 8));
                             }
                         }
 
                         else if (bwl->getType() == DirectiveType::LONG) {
                             relStream << std::setfill('0') << std::setw(2) << std::hex << (val & 0xFF) << ' ';
-                            relStream << std::setfill('0') << std::setw(2) << std::hex << ((val >> 8) & 0xFF) << ' ';
-                            relStream << std::setfill('0') << std::setw(2) << std::hex << ((val >> 16) & 0xFF) << ' ';
-                            relStream << std::setfill('0') << std::setw(2) << std::hex << ((val >> 24) & 0xFF) << ' ';
+                            binData->push_back((char)(val & 0xFF));
                             
+                            relStream << std::setfill('0') << std::setw(2) << std::hex << ((val >> 8) & 0xFF) << ' ';
+                            binData->push_back((char)((val >> 8) & 0xFF));
+
+                            relStream << std::setfill('0') << std::setw(2) << std::hex << ((val >> 16) & 0xFF) << ' ';
+                            binData->push_back((char)((val >> 16) & 0xFF));
+                            
+                            relStream << std::setfill('0') << std::setw(2) << std::hex << ((val >> 24) & 0xFF) << ' ';
+                            binData->push_back((char)((val >> 24) & 0xFF));
                         }
                     }
                     catch(std::invalid_argument e) {
@@ -738,15 +866,23 @@ void Assembler::assembleDataSection(Section* current, size_t& locationCounter) {
                     if (bwl->getType() == DirectiveType::WORD) {
 
                         relStream << std::setfill('0') << std::setw(2) << std::hex << (offset & 0xFF) << ' ';
-                        relStream << std::setfill('0') << std::setw(2) << std::hex << (offset >> 8) << ' ';
+                        binData->push_back((char)(offset & 0xFF));
 
+                        relStream << std::setfill('0') << std::setw(2) << std::hex << (offset >> 8) << ' ';
+                        binData->push_back((char)(offset & 0xFF));
                     }
 
                     else if (bwl->getType() == DirectiveType::LONG) {
                         relStream << std::setfill('0') << std::setw(2) << std::hex << (offset & 0xFF) << ' ';
+                        binData->push_back((char)(offset & 0xFF));
+                        
                         relStream << std::setfill('0') << std::setw(2) << std::hex << ((offset >> 8) & 0xFF) << ' ';
+                        binData->push_back((char)((offset >> 8) & 0xFF));
+
                         relStream << "00 ";
                         relStream << "00 ";
+                        binData->push_back(0);
+                        binData->push_back(0);
 
                     }
                 }
@@ -915,13 +1051,16 @@ short Assembler::resolveLabel(const size_t& locationCounter, Section* current, c
             }
 
             std::stringstream relStream;
-             
+            
             relStream << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << std::hex << relOffset 
                       << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << "R_386_PC16" 
                       << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << s->getNo();
             std::string relocationRecord(relStream.str());
 
-            this->relText.push_back(relocationRecord);
+            Relocation rel(relOffset, RelocationType::R_386_PC16, s->getNo());
+            this->relText.push_back(rel);
+
+            this->txtRelText.push_back(relocationRecord);
         }
     }
     else {
@@ -942,7 +1081,10 @@ short Assembler::resolveLabel(const size_t& locationCounter, Section* current, c
                   << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << s->getNo();
         std::string relocationRecord(relStream.str());
 
-        this->relText.push_back(relocationRecord);
+        Relocation rel(relOffset, RelocationType::R_386_16, s->getNo());
+        this->relText.push_back(rel);
+
+        this->txtRelText.push_back(relocationRecord);
     }
 
     return offset;
@@ -961,12 +1103,16 @@ short Assembler::resolveDataLabel(const size_t& locationCounter, Section* curren
         s = s->getSectionPtr();
     }
 
-    std::string relType;
+    std::string relTypeStr;
+    RelocationType relType;
+
     if (bwl->getType() == DirectiveType::WORD) {
-        relType = "R_386_16";
+        relTypeStr = "R_386_16";
+        relType = RelocationType::R_386_16;
     }
     else if (bwl->getType() == DirectiveType::LONG) {
-        relType = "R_386_32";
+        relTypeStr = "R_386_32";
+        relType = RelocationType::R_386_32;
     } 
     else {
         throw AssemblingException("Cannot rellocate this directive type", this->lines[lineNumber], lineNumber);
@@ -975,15 +1121,20 @@ short Assembler::resolveDataLabel(const size_t& locationCounter, Section* curren
     std::stringstream relStream;
 
     relStream << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << std::hex << relOffset 
-              << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << relType 
+              << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << relTypeStr
               << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << s->getNo();
+
+    Relocation rel(relOffset, relType, s->getNo());
+
     std::string relocationRecord(relStream.str());
 
     if (current->getSectionCode() == SectionType::DATA) {
-        this->relData.push_back(relocationRecord);
+        this->txtRelData.push_back(relocationRecord);
+        this->relData.push_back(rel);
     }
     else if (current->getSectionCode() == SectionType::RO_DATA) { 
-        this->relROData.push_back(relocationRecord);
+        this->txtRelROData.push_back(relocationRecord);
+        this->relROData.push_back(rel);
     }
     else {
         throw AssemblingException("Unsupported section in method resolveDataLabel", this->lines[lineNumber], lineNumber);

@@ -11,8 +11,8 @@ namespace ss {
     public:
         Section() : Symbol() {}
         Section(size_t sectionSize, Access access) : sectionSize(sectionSize), access(access), Symbol() {}
-        Section(size_t sectionSize, Access access, const std::string& name, SectionType section, unsigned int offset, bool local) 
-        : Symbol(name, section, offset, local), sectionSize(sectionSize), access(access) {} 
+        Section(size_t sectionSize, Access access, const std::string& name, SectionType section, unsigned int offset, bool local, unsigned short align = 0) 
+        : Symbol(name, section, offset, local), sectionSize(sectionSize), access(access), align(align) {} 
     
         size_t getSectionSize() const  {
             return sectionSize;
@@ -25,9 +25,14 @@ namespace ss {
         Access getAccessRights() const {
             return access;
         }
+
+        unsigned short getAlign() const {
+            return this->align;
+        }
     private:
         size_t sectionSize;
         Access access;
+        unsigned short align;
     };
 };
 #endif
