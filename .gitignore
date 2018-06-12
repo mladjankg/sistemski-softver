@@ -7,3 +7,5 @@ nbproject/*
 input.asm
 input.asm~
 output.asm
+input12.asm
+output.asm.o
