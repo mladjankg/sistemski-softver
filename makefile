@@ -8,7 +8,7 @@ ARCH=-m32 -std=c++11 -static
 PROGRAM=assembler
 
 SRC = $(wildcard $(SRCDIR)/*.cpp)
-SRC += $(wildcard $(ASMDIR)/*.cpp)
+#SRC += $(wildcard $(ASMDIR)/*.cpp)
 OBJ = $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.o,$(SRC))
 
 $(PROGRAM): $(OBJ)
