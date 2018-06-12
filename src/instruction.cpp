@@ -1,4 +1,5 @@
 #include <regex>
+#include <iostream>
 #include "utils.h"
 #include "instruction.h"
 #include "string_tokenizer.h"
@@ -232,7 +233,7 @@ void Instruction::parseInstruction(std::string line, int lineNumber) {
                     this->instruction = InstructionCode::POP;
                     this->operand1 = new Operand("r7"); //r7 <=> PC
                 }
-                
+      
                 return;
             }
             else {
@@ -268,6 +269,7 @@ void Instruction::parseInstruction(std::string line, int lineNumber) {
             }
 
             this->operand1 = new Operand(std::string("r7")); //r7 <=> PC
+                          
         }
 
 

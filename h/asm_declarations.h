@@ -59,6 +59,10 @@ namespace ss {
         RO_DATA,
         BSS,
         STR_TAB,
+        SYMB_TAB,
+        REL_DATA,
+        REL_RODATA,
+        REL_TEXT,
         UDF
     };
 

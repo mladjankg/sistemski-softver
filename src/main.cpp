@@ -54,9 +54,11 @@ int main(int argc, const char* argv[]) {
     
     //Creating assembler.
     try {
-        Assembler as = Assembler::getInstance(input, output);
+        Assembler* as = Assembler::getInstance(input, output, 0);
 
-        as.assemble();
+        as->assemble();
+
+        delete as;
     }
     catch (FileException e) {
         std::cout << e.what();

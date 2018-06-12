@@ -8,11 +8,11 @@
 #include <list>
 #include <vector>
 
-#include "symbol.h"
 #include "ss_exceptions.h"
 #include "asm_declarations.h"
 
 #define SECTION_NUMBER 4
+#define EXTENDED_SECTION_NUMBER 9
 #define CONDITION_FLAGS_OFFSET 14
 #define INSTRUCTION_FLAGS_OFFSET 10
 #define OP1_ADDRESSING_FLAGS_OFFSET 8
@@ -22,9 +22,10 @@
 
 namespace ss {
     
-
+    class Symbol;
     using SymbolTable = std::map<std::string, Symbol*>;
     class Instruction;
+    
     class Section;
     class Directive;
     class BWLDirective;
@@ -33,17 +34,17 @@ namespace ss {
 
     class Assembler {
     public:
-        Assembler(Assembler&& a);
+        //Assembler(Assembler&& a);
 
         void assemble();
 
-        static Assembler getInstance(std::string& inputFile, std::string& outputFile, unsigned short startAddress);
+        static Assembler* getInstance(std::string& inputFile, std::string& outputFile, unsigned short startAddress);
 
         ~Assembler();
     private:
 
         //Private constructor for controlled creation of assembler.
-        Assembler(std::ifstream* in, std::ofstream* out, unsigned short startAddress);
+        Assembler(std::ifstream* in, std::ofstream* out, std::ofstream* outPretty, unsigned short startAddress);
 
         //Method that does the first pass.
         void firstPass();
@@ -74,6 +75,7 @@ namespace ss {
         void assembleDataSection(Section* current, size_t& locationCounter);      
         void assembleRODataSection(Section* current, size_t& locationCounter);
 
+        void cleanLocalSymbols();
         void copy(const Assembler&);
         void move(Assembler&);
 
@@ -83,6 +85,8 @@ namespace ss {
 
         std::ifstream *input;
         std::ofstream *output;
+        std::ofstream *objdumpOut;
+
         short startAddress;
 
         std::map<std::string, Symbol*> symbolTable;

@@ -15,11 +15,14 @@ namespace ss {
             return type;
         }
 
-        ~Directive();
+
+        virtual ~Directive() = 0;
     private:
         DirectiveType type;
 
     };
+
+    inline Directive::~Directive() {}
 
     class SkipDirective :public Directive {
     public:
@@ -30,6 +33,8 @@ namespace ss {
         }
 
         const unsigned int getOffset() const { return this->offset; }
+
+        ~SkipDirective() {}
 
     private:
         unsigned int offset;
@@ -51,6 +56,7 @@ namespace ss {
             return operands;
         }
 
+        ~BWLDirective() {}
     private:
 
         std::list<std::string> operands;
