@@ -6,6 +6,7 @@
 namespace ss {
     struct Relocation {
     public:
+        Relocation() {}
         Relocation(short offset, RelocationType type, unsigned int id) 
             : offset(offset), type(type), id(id) {} 
 

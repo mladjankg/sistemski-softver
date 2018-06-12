@@ -383,7 +383,7 @@ void Assembler::parseDirective(const std::string& line, const std::string& direc
 
 void Assembler::changeSection(const std::string& sectionName, SectionType sectionType, Access access, int locationCounter, Section*& previousSection, Section*& currentSection) {
     
-    size_t sectionSize = previousSection ? locationCounter - previousSection->getSectionSize() : locationCounter;
+    size_t sectionSize = previousSection ? locationCounter - currentSection->getOffset() : locationCounter;
 
     previousSection = currentSection;
     if (previousSection != nullptr) {

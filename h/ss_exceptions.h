@@ -48,6 +48,6 @@ namespace ss {
         }
     private:
         std::string message;
-    }
+    };
 }
 #endif

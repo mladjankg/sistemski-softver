@@ -137,8 +137,9 @@ void Assembler::writeOutput() {
             hasBss = true;
     }
 
+
     if (hasText) {
-        ;
+        
         size_t size = this->textBin.size();
         if (size > maxSecSize) {
             throw AssemblingException("Section text exceeds maximum allowed size.");
@@ -158,7 +159,7 @@ void Assembler::writeOutput() {
 
     if (hasRoData) {
 
-        size_t size = this->textBin.size();
+        size_t size = this->roDataBin.size();
         if (size > maxSecSize) {
             throw AssemblingException("Section rodata exceeds maximum allowed size.");
         }
@@ -175,9 +176,10 @@ void Assembler::writeOutput() {
         ++sectionHdNum;
     }
 
+    //Writting data section
     if (hasData) {
 
-        size_t size = this->textBin.size();
+        size_t size = this->dataBin.size();
         if (size > maxSecSize) {
             throw AssemblingException("Section data exceeds maximum allowed size.");
         }
@@ -194,14 +196,15 @@ void Assembler::writeOutput() {
         ++sectionHdNum;
     }
 
+    //Writting bss section
+    size_t bssSize = 0;
     if (hasBss) {
-        
-        size_t size = this->textBin.size();
+        Section *s = (Section*)this->symbolTable[".bss"];
+        size_t size = s->getSectionSize();
+        bssSize = size;
         if (size > maxSecSize) {
             throw AssemblingException("Section bss exceeds maximum allowed size.");
         }
-
-        Section *s = (Section*)this->symbolTable[".bss"];
 
         sectionHds[sectionHdNum] = SectionHeader(s->getSectionCode(), s->getAccessRights(), currentOffset, (ElfWord)size, s->getAlign(), 0);
         
@@ -215,10 +218,11 @@ void Assembler::writeOutput() {
 
     std::vector<SymTabEntry> symTabEntries;
     std::vector<std::string> symTabNames;
-    ElfWord strTabSize;
+    ElfWord strTabSize = 0;
     ElfWord symCnt = 0;
     hasSymTab = this->symbolTable.size() != 0;
 
+    //Writting symbol table
     for(auto it = this->symbolTable.begin(); it != this->symbolTable.end(); ++it) {
 
         Symbol* s = it->second;
@@ -233,8 +237,8 @@ void Assembler::writeOutput() {
 
         symTabEntries.push_back(SymTabEntry(symCnt, offset, s->getSectionCode(), s->getNo()));
         symTabNames.push_back(s->getName());
-
-        strTabSize += (ElfWord)(sizeof(int) + s->getName().length()); 
+        size_t size = sizeof(int) + s->getName().length();
+        strTabSize += (ElfWord)(size); 
         symCnt++;
     }
 
@@ -246,6 +250,7 @@ void Assembler::writeOutput() {
                   *relDataHd = nullptr,
                   *relRODataHd = nullptr;
 
+    //Writting relocation text section
     if (this->relText.size() != 0) {
         sectionHds[sectionHdNum] = SectionHeader(SectionType::REL_TEXT, Access::RD, currentOffset, (ElfWord)(this->relText.size() * sizeof(Relocation)), 0, sizeof(Relocation));
         currentOffset += sectionHds[sectionHdNum].size;
@@ -253,6 +258,7 @@ void Assembler::writeOutput() {
         ++sectionHdNum;
     }
 
+    //Writing relocation rodata section
     if (this->relROData.size() != 0) {
         sectionHds[sectionHdNum] = SectionHeader(SectionType::REL_RODATA, Access::RD, currentOffset, (ElfWord)(this->relROData.size() * sizeof(Relocation)), 0, sizeof(Relocation));
         currentOffset += sectionHds[sectionHdNum].size;
@@ -260,6 +266,7 @@ void Assembler::writeOutput() {
         ++sectionHdNum;
     }
 
+    //Writting relocation data section
     if (this->relData.size() != 0) {
         sectionHds[sectionHdNum] = SectionHeader(SectionType::REL_DATA, Access::RD, currentOffset, (ElfWord)(this->relData.size() * sizeof(Relocation)), 0, sizeof(Relocation));
         currentOffset += sectionHds[sectionHdNum].size;
@@ -267,7 +274,8 @@ void Assembler::writeOutput() {
         ++sectionHdNum;
     }
 
-    sectionHds[sectionHdNum] = SectionHeader(SectionType::STR_TAB, Access::RD, currentOffset, strTabSize + (ElfWord)(sizeof(int) * symTabNames.size()), 0, 0);
+    //Writting string table section
+    sectionHds[sectionHdNum] = SectionHeader(SectionType::STR_TAB, Access::RD, currentOffset, strTabSize, 0, 0);
     currentOffset += sectionHds[sectionHdNum].size;
     hasStrTab = true;
     ++sectionHdNum;
@@ -282,33 +290,58 @@ void Assembler::writeOutput() {
     header.shNum = sectionHdNum;
 
     this->output->write((char*)&header, sizeof(ELFHeader)); 
-
-    if (hasText) {
-        this->output->write(&this->textBin[0], this->textBin.size() * sizeof(char)); 
+    std::cout  << this->output->tellp() << std::flush;
+    for(int i = 0; i < SECTION_NUMBER && this->sectionOrder[i] != SectionType::UDF; ++i) {
+        if (this->sectionOrder[i] == SectionType::TEXT) {
+            this->output->write(&this->textBin[0], this->textBin.size() * sizeof(char)); 
+            std::cout  << this->output->tellp() << std::endl <<std::flush;
+        }
+        if (this->sectionOrder[i] == SectionType::RO_DATA) {
+            this->output->write(&this->roDataBin[0], this->roDataBin.size() * sizeof(char));
+            std::cout  << this->output->tellp() << std::endl <<std::flush;
+        }
+        if (this->sectionOrder[i] == SectionType::DATA) {
+            this->output->write(&this->dataBin[0], this->dataBin.size() * sizeof(char)); 
+            std::cout  << this->output->tellp() << std::endl <<std::flush;
+        }
+        if (this->sectionOrder[i] == SectionType::BSS) {
+            char* bss = new char[bssSize];
+            this->output->write(&bss[0], bssSize);
+            delete[] bss;
+            std::cout  << this->output->tellp() <<std::endl << std::flush;
+        }
     }
 
-    if (hasRoData) {
-        this->output->write(&this->roDataBin[0], this->roDataBin.size() * sizeof(char)); 
-    }
+    // if (hasText) {
+    //     this->output->write(&this->textBin[0], this->textBin.size() * sizeof(char)); 
+    // }
 
-    if (hasData) {
-        this->output->write(&this->dataBin[0], this->dataBin.size() * sizeof(char)); 
-    }
+    // if (hasRoData) {
+    //     this->output->write(&this->roDataBin[0], this->roDataBin.size() * sizeof(char)); 
+    // }
+
+    // if (hasData) {
+    //     this->output->write(&this->dataBin[0], this->dataBin.size() * sizeof(char)); 
+    // }
 
     if (hasSymTab) {
         this->output->write((char*)&symTabEntries[0], sizeof(SymTabEntry) * symTabEntries.size());
+        std::cout  << this->output->tellp() << std::endl <<std::flush;
     }
 
     if (hasRelText) {
         this->output->write((char*)&this->relText[0], sizeof(Relocation) * this->relText.size());
+        std::cout  << this->output->tellp() <<std::endl << std::flush;
     }
 
     if (hasRelROData) {
         this->output->write((char*)&this->relROData[0], sizeof(Relocation) * this->relROData.size());
+            std::cout  << this->output->tellp() <<std::endl << std::flush;
     }
 
     if (hasRelData) {
         this->output->write((char*)&this->relData[0], sizeof(Relocation) * this->relData.size());
+            std::cout  << this->output->tellp() <<std::endl << std::flush;
     }
 
     if (hasStrTab) {
@@ -316,11 +349,12 @@ void Assembler::writeOutput() {
             unsigned int sz = symTabNames[i].length();
 
             this->output->write((char*)&sz, sizeof(int));
-            this->output->write((char*)&symTabNames[i], sz);
+            this->output->write((char*)&symTabNames[i][0], sz);
+            std::cout  << this->output->tellp() << std::endl << std::flush;
         }
     }
 
-
+    std::cout  << this->output->tellp() << std::flush;
     this->output->write((char*)&sectionHds[0], sizeof(SectionHeader) * sectionHdNum);
     
 }

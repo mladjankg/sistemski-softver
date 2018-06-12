@@ -4,7 +4,7 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build",
+            "label": "buildasm",
             "type": "shell",
             "command": "make",
             "args": [
@@ -21,11 +21,29 @@
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "run",
+            "label": "runasm",
             "type": "shell",
             "command": "./assembler input.asm output.asm",
             "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "buildemul",
+            "type": "shell",
+            "command": "cd emulator && make && cd ..",
+            "args": [
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            // "presentation": {
+            //     // Reveal the output only if unrecognized errors occur.
+            //     "reveal": "silent"
+            // },
+            // Use the standard MS compiler pattern to detect errors, warnings and infos
+            "problemMatcher": "$msCompile"
         }
+    
 
     ]
 }

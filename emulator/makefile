@@ -1,18 +1,19 @@
 
-IDIR=h
-OBJDIR=obj/assembler
-SRCDIR=src
-ASMDIR=assembler
+.PHONY: clean
+IDIR=../h
+OBJDIR=../obj/emulator
+SRCDIR=../src
+EMDIR=./
 CC=g++
 CFLAGS=-I$(IDIR)
 ARCH=-m32 -std=c++11 -static
-PROGRAM=asembler
+PROGRAM=../emul
 
 
 SRC = $(wildcard $(SRCDIR)/*.cpp)
-SRC1 = $(wildcard $(ASMDIR)/*.cpp)
+SRC1 = $(wildcard $(EMDIR)/*.cpp)
 OBJ = $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.o,$(SRC))
-OBJ += $(patsubst $(ASMDIR)/%.cpp,$(OBJDIR)/%.o,$(SRC1))
+OBJ += $(patsubst $(EMDIR)/%.cpp,$(OBJDIR)/%.o,$(SRC1))
 
 
 $(PROGRAM): $(OBJ)
@@ -21,7 +22,7 @@ $(PROGRAM): $(OBJ)
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	$(CC) -g -o $@ -c $< $(CFLAGS) $(ARCH)
 
-$(OBJDIR)/%.o: $(ASMDIR)/%.cpp
+$(OBJDIR)/%.o: $(EMDIR)/%.cpp
 	$(CC) -g -o $@ -c $< $(CFLAGS) $(ARCH)
 
 clean:

@@ -39,7 +39,7 @@ void Assembler::secondPass() {
         switch(this->sectionOrder[i]) {
             case SectionType::TEXT: {
                 this->assembleTextSection(currentSection, locationCounter);
-                std::cout << this->textOut;
+                //std::cout << this->textOut;
                 break;
             }
             case SectionType::DATA: {

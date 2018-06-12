@@ -6,7 +6,7 @@
 #define LIMIT_MASK 0xFFFF0000
 #define FIELD_LENGTH 15
 #define SECTION_NUMBER 4
-#define EXTENDED_SECTION_NUMBER 9
+#define EXTENDED_SECTION_NUMBER 10
 
 //Instructions op codes.
 namespace ss {
