@@ -11,8 +11,6 @@
 #include "ss_exceptions.h"
 #include "asm_declarations.h"
 
-#define SECTION_NUMBER 4
-#define EXTENDED_SECTION_NUMBER 9
 #define CONDITION_FLAGS_OFFSET 14
 #define INSTRUCTION_FLAGS_OFFSET 10
 #define OP1_ADDRESSING_FLAGS_OFFSET 8
@@ -68,6 +66,10 @@ namespace ss {
         //Method that gets directive.
         std::string getDirective(const std::string line) const;
         
+        static void initStatic();
+
+        static bool checkReserved(std::string label);
+
         short resolveLabel(const size_t& locationCounter, Section* current, const std::string label, const int lineNumber, const bool pcRel = false);      
         short resolveDataLabel(const size_t& locationCounter, Section* current, const std::string label, BWLDirective* bwl, const int lineNumber);
         
@@ -111,6 +113,8 @@ namespace ss {
         std::string textOut;
         std::string dataOut;
         std::string roDataOut;
+
+        static std::map<std::string, char> reservedWords;
 
         SectionType sectionOrder[4] = {SectionType::UDF, SectionType::UDF, SectionType::UDF, SectionType::UDF};
         char sectionCounter = 0;

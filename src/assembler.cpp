@@ -24,8 +24,10 @@
 
 using namespace ss;
 
+std::map<std::string, char> Assembler::reservedWords;
+
 Assembler::Assembler(std::ifstream* in, std::ofstream* out, std::ofstream* outPretty, unsigned short start) : input(in), output(out), objdumpOut(outPretty), startAddress(start) {
-izmeena
+
 }
 
 // Assembler::Assembler(Assembler&& a) {
@@ -73,7 +75,56 @@ Assembler* Assembler::getInstance(std::string& inputFile, std::string& outputFil
         throw FileException(message.c_str());
     }
     
+    Assembler::initStatic();
+
     return new Assembler(in, out, outPretty, startAddress);
+}
+
+bool Assembler::checkReserved(std::string label) {
+    if (Assembler::reservedWords.find(label) != Assembler::reservedWords.end()) {
+        return true;
+    }
+
+    if ((label.length() > 3) && (label.length() < 7)) {
+        std::string lab = label.substr(0, label.length() - 2);
+        std::string sufix = label.substr(label.length() - 2);
+        bool addrSufix = !sufix.compare("eq") || !sufix.compare("al") || !sufix.compare("gt") || !sufix.compare("ne");
+
+        if (Assembler::reservedWords.find(lab) != Assembler::reservedWords.end()) {
+            return Assembler::reservedWords[lab] && addrSufix;
+        }
+    }
+
+    return false;
+}
+void Assembler::initStatic() {
+    Assembler::reservedWords["r0"] = 0;
+    Assembler::reservedWords["r1"] = 0;
+    Assembler::reservedWords["r2"] = 0;
+    Assembler::reservedWords["r3"] = 0;
+    Assembler::reservedWords["r4"] = 0;
+    Assembler::reservedWords["r5"] = 0;
+    Assembler::reservedWords["r6"] = 0;
+    Assembler::reservedWords["r7"] = 0;
+    Assembler::reservedWords["pc"] = 0;
+    Assembler::reservedWords["sp"] = 0;
+    Assembler::reservedWords["psw"] = 0;
+    Assembler::reservedWords["add"] = 1;
+    Assembler::reservedWords["sub"] = 1;
+    Assembler::reservedWords["mul"] = 1;
+    Assembler::reservedWords["div"] = 1;
+    Assembler::reservedWords["cmp"] = 1;
+    Assembler::reservedWords["and"] = 1;
+    Assembler::reservedWords["or"] = 1;
+    Assembler::reservedWords["not"] = 1;
+    Assembler::reservedWords["test"] = 1;
+    Assembler::reservedWords["push"] = 1;
+    Assembler::reservedWords["pop"] = 1;
+    Assembler::reservedWords["call"] = 1;
+    Assembler::reservedWords["iret"] = 1;
+    Assembler::reservedWords["mov"] = 1;
+    Assembler::reservedWords["shl"] = 1;
+    Assembler::reservedWords["shr"] = 1;
 }
 
 void Assembler::assemble() {

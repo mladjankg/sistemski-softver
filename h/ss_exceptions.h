@@ -38,5 +38,16 @@ namespace ss {
         
         static std::string generigMsg;
     };
+
+    class LinkingException: public std::exception {
+    public:
+        LinkingException(std::string msg) : message(msg) {}
+
+        const char* what() const throw() {
+            return message.c_str();
+        }
+    private:
+        std::string message;
+    }
 }
 #endif

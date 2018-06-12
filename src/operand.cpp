@@ -8,7 +8,7 @@ using namespace ss;
 std::regex Operand::decimalRegex("(^(-)?[0-9]+$)");
 std::regex Operand::regIndDecRegex("^r[0-7]\[[ \\t]*[0-9]+[ \\t]*\]$");
 std::regex Operand::regIndLabRegex("^r[0-7]\[[ \\t]*[a-zA-Z_]\\w*[ \\t]*\]$");
-std::regex Operand::regDirRegex("^r[0-7]$");
+std::regex Operand::regDirRegex("((^r[0-7]$)|(^psw$)|(^pc$)|(^sp$))");
 std::regex Operand::labelRegex("^(((&|\\$)?[a-zA-Z_]\\w*$)|(^\.bss$)|(^\.text$)|(^\.data$)|(^\.rodata$))");
 std::regex Operand::locationRegex("^\\*[0-9]+$");
 
@@ -17,7 +17,27 @@ Operand::Operand(const std::string op) : valid(true), text(op) {
     bool regDir = std::regex_match(op, regDirRegex);
     bool regIndLab = std::regex_match(op, regIndLabRegex);
     bool regIndDec = std::regex_match(op, regIndDecRegex);
-    if (std::regex_match(op, labelRegex) && !regIndLab && !regIndDec && !regDir) {
+    
+    if (regDir) {
+        if (op.compare("psw") == 0) {
+            this->extraBytes = false;
+            this->type = OperandType::PSW;
+            this->addressing = AddressingCode::IMMED;
+        }
+        else {
+            if (op.compare("pc")) {
+                this->text= "r7";
+            }
+            else if(op.compare("sp")) {
+                this->text = "r6";
+            }
+
+            this->extraBytes = false;
+            this->type = OperandType::REGDIR_VAL;
+            this->addressing = AddressingCode::REGDIR;
+        }
+    }
+    else if (std::regex_match(op, labelRegex) && !regIndLab && !regIndDec && !regDir) {
         this->extraBytes = true;
 
         if (op[0] == '&') {
@@ -34,12 +54,6 @@ Operand::Operand(const std::string op) : valid(true), text(op) {
             this->type = OperandType::MEMDIR_VAL;
             this->addressing = AddressingCode::MEMDIR;
         }
-    }
-
-    else if (regDir) {
-        this->extraBytes = false;
-        this->type = OperandType::REGDIR_VAL;
-        this->addressing = AddressingCode::REGDIR;
     }
 
     else if (regIndDec) {

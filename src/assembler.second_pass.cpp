@@ -88,7 +88,7 @@ void Assembler::assembleTextSection(Section* current, size_t& locationCounter) {
             auto op1Addr = op1->getAddressing();
 
             //Only call is allowed to have first operand provided with immediate addressing.
-            if ((op1->getAddressing() == AddressingCode::IMMED) && (instr->getInstruciton() != InstructionCode::CALL)) {
+            if ((op1->getAddressing() == AddressingCode::IMMED) && (instr->getInstruciton() != InstructionCode::CALL) && (op1->getType() != OperandType::PSW)) {
                 std::string line = this->lines[it->first];
                 throw AssemblingException("Addressing error, immediate operand cannot be destination", line, it->first);
             }
@@ -178,9 +178,6 @@ void Assembler::assembleDataSection(Section* current, size_t& locationCounter) {
                 binData->push_back(t);
             }
             locationCounter += size;
-        }
-        else if (d->getType() == DirectiveType::ALIGN) {
-            
         }
         else {
             BWLDirective* bwl = (BWLDirective*)d;
@@ -294,7 +291,10 @@ char Assembler::getOperandCode(Operand* op, Section* current, Instruction* instr
         }
     
         case AddressingCode::IMMED: {
-            if (op->getType() == OperandType::IMMED_VAL) {
+            if (op->getType() == OperandType::PSW) {
+                firstHalf = 0x7;
+            }
+            else if (op->getType() == OperandType::IMMED_VAL) {
 
                 short val = 0;
                 if (!(this->getImmediateValue(op1Raw, val))) {

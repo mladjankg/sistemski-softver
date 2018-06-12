@@ -73,6 +73,10 @@ void Assembler::firstPass() {
             std::string& token = st.nextToken();
             SymbolTable::const_iterator it = this->symbolTable.find(token);
             
+            if (Assembler::checkReserved(token)) {
+                throw AssemblingException("Label name error, word " + token + " is reserved", line, lineNumber);
+            }
+
             bool undefined = false;
 
             //Checking if label was already defined. If it was defined in .global directive, we are only
@@ -228,6 +232,7 @@ void Assembler::firstPass() {
 
                 this->instructions[lineNumber] = i;
 
+                currentSection->increaseParsed();
                 locationCounter += i->getInstructionSize();
                 
             }
@@ -321,8 +326,25 @@ void Assembler::parseDirective(const std::string& line, const std::string& direc
     }
     
     else if (directive.compare(".align") == 0) {
-        //TODO: implement align.
+        if (currentSection->getNParsed() != 0) {
+            throw AssemblingException("Directive .align can only be written on the beggining of the section.", line, lineNumber);
+        }
+
+        if (!std::regex_match(ops, Utils::decimalRegex)) {
+            throw AssemblingException(".align invalid operand", line, lineNumber);
+        }
+
+        int pow = std::stoi(ops);
+        
+        if (pow > 14) {
+            throw AssemblingException(".align operand out of range", line, lineNumber);
+        }
+        unsigned int align = 1;
+        align <<= pow;
+        currentSection->setAlign(align);
     }
+
+    currentSection->increaseParsed();
 
     if (currentSection->getSectionCode() == SectionType::BSS) {
         if (hasOps && (directive.compare(".skip") != 0)) {

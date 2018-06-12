@@ -5,6 +5,9 @@
 #define MAX_BYTE_MASK 0xFFFFFF00
 #define LIMIT_MASK 0xFFFF0000
 #define FIELD_LENGTH 15
+#define SECTION_NUMBER 4
+#define EXTENDED_SECTION_NUMBER 9
+
 //Instructions op codes.
 namespace ss {
     
@@ -82,7 +85,8 @@ namespace ss {
         REGDIR_VAL,           // r3 – register direct
         REGIND_DEC_VAL,       // r4[32] – register indirect with immediate offset
         REGIND_LAB_VAL,       // r5[x] – register indirect with variable offset
-        PCREL_VAL             // $x – PC relative addresing of variable x
+        PCREL_VAL,             // $x – PC relative addresing of variable x
+        PSW
     };
 
     enum RelocationType : char {
