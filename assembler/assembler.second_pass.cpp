@@ -188,8 +188,8 @@ void Assembler::assembleDataSection(Section* current, size_t& locationCounter) {
             BWLDirective* bwl = (BWLDirective*)d;
             auto operands = bwl->getOperands();
 
-            if (operands.size() == 0 && current->getSectionCode() == SectionType::RO_DATA) {
-                throw AssemblingException("Data in rodata section must be initialized", this->lines[it->first], it->first);
+            if (operands.size() == 0) {
+                throw AssemblingException("Data in " + current->getName() +" section must be initialized", this->lines[it->first], it->first);
             }
             for(auto op: operands) {
                 if (std::regex_match(op, Utils::decimalRegex)) {
@@ -434,11 +434,11 @@ short Assembler::resolveLabel(const size_t& locationCounter, Section* current, c
     short offset = 0;
 
 
-    if (pcRel && (s->getSectionCode() == current->getSectionCode())) {
-        offset = s->getOffset() - locationCounter;
-    }
+    // if (pcRel && (s->getSectionCode() == current->getSectionCode())) {
+    //     offset = s->getOffset() - locationCounter;
+    // }
 
-    else {
+    /*else*/ {
         short relOffset = locationCounter - 2 - current->getOffset(); //currentLocation-currentSection begin - 2
 
         if (s->isLocal()) {
@@ -470,7 +470,7 @@ short Assembler::resolveLabel(const size_t& locationCounter, Section* current, c
     return offset;
 }
 
-short Assembler::resolveDataLabel(const size_t& locationCounter, Section* current, const std::string lab, BWLDirective* bwl, const int lineNumber, const bool pcRel) {
+short Assembler::resolveDataLabel(const size_t& locationCounter, Section* current, const std::string lab, BWLDirective* bwl, const int lineNumber) {
     std::string label(lab);
  
     if (lab[0] == '&' || lab[0] == '$') {
@@ -485,44 +485,28 @@ short Assembler::resolveDataLabel(const size_t& locationCounter, Section* curren
     short offset = 0;
     size_t relOffset = locationCounter - current->getOffset() - (bwl->getType() == DirectiveType::WORD ? 2 : 4);
     
-    if (s->getSectionCode() == current->getSectionCode()) {
+    /*if (s->getSectionCode() == current->getSectionCode()) {
         offset = s->getOffset() - locationCounter - (bwl->getType() == DirectiveType::WORD ? 2 : bwl->getType() == DirectiveType::BYTE ? 1 : 4);
-    }
-    if(!pcRel) {
-        if (s->isLocal()) {
-            
-            
-            offset = (s->getSectionPtr() != nullptr ? (s->getOffset() - s->getSectionPtr()->getOffset()) : 0); 
+    }*/
+    
+    if (s->isLocal()) {        
+       offset = (s->getSectionPtr() != nullptr ? (s->getOffset() - s->getSectionPtr()->getOffset()) : 0); 
 
-            if (s->getSectionPtr() != nullptr)
-                s = s->getSectionPtr();
+        if (s->getSectionPtr() != nullptr)
+         s = s->getSectionPtr();
 
-            if (s == nullptr) {
-                throw AssemblingException("Unknown error, method resolveDataLabel");
-            }
+        if (s == nullptr) {
+            throw AssemblingException("Unknown error, method resolveDataLabel");
         }
     }
-    else {
-        short relOffset = locationCounter - 2 - current->getOffset();
-
-        if (s->isLocal()) {
-            offset = s->getOffset() - s->getSectionPtr()->getOffset() - 2;
-            if (pcRel && s->getSectionPtr() != nullptr) {
-                s = s->getSectionPtr();
-            }
-        }
-
-        else {
-            offset = -2;
-        }
-    }
+    
 
     std::string relTypeStr;
     RelocationType relType;
 
     if (bwl->getType() == DirectiveType::WORD || bwl->getType() == DirectiveType::LONG) {
-        relTypeStr = pcRel ? "R_386_PC16" : "R_386_16";
-        relType = pcRel ? RelocationType::R_386_PC16 : RelocationType::R_386_16;
+        relTypeStr = "R_386_16";
+        relType = RelocationType::R_386_16;
     }
     else {
         throw AssemblingException("Cannot rellocate this directive type", this->lines[lineNumber], lineNumber);

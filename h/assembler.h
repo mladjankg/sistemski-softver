@@ -71,7 +71,7 @@ namespace ss {
         static bool checkReserved(std::string label);
 
         short resolveLabel(const size_t& locationCounter, Section* current, const std::string label, const int lineNumber, const bool pcRel = false);      
-        short resolveDataLabel(const size_t& locationCounter, Section* current, const std::string label, BWLDirective* bwl, const int lineNumber, const bool pcRel = false);
+        short resolveDataLabel(const size_t& locationCounter, Section* current, const std::string label, BWLDirective* bwl, const int lineNumber);
         
         void assembleTextSection(Section* current, size_t& locationCounter);       
         void assembleDataSection(Section* current, size_t& locationCounter);      

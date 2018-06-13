@@ -20,9 +20,11 @@ std::string Symbol::toString() const {
         offset = 0;
         if (this->getSectionCode() == SectionType::UDF) {
             sectionName = "udf";
+            
         }
         else {
             sectionName = this->getName().substr(1);
+            offset = this->getOffset();
         }
     }
     os << sectionName << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << offset << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << this->getNo();
