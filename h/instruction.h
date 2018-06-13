@@ -12,7 +12,8 @@ namespace ss {
     class Instruction {
     public:
         Instruction() : size(2), operand1(nullptr), operand2(nullptr) {}
-
+        Instruction(size_t size) 
+            : operand1(nullptr), operand2(nullptr), instruction(InstructionCode::ALIGN_INST), size(size) {}
         void parseInstruction(std::string, int);
 
         Operand* getOperand1() const {

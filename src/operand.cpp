@@ -6,7 +6,7 @@
 using namespace ss;
 
 std::regex Operand::decimalRegex("(^(-)?[0-9]+$)");
-std::regex Operand::regIndDecRegex("^r[0-7]\[[ \\t]*[0-9]+[ \\t]*\]$");
+std::regex Operand::regIndDecRegex("^r[0-7]\[[ \\t]*(-)?[0-9]+[ \\t]*\]$");
 std::regex Operand::regIndLabRegex("^r[0-7]\[[ \\t]*[a-zA-Z_]\\w*[ \\t]*\]$");
 std::regex Operand::regDirRegex("((^r[0-7]$)|(^psw$)|(^pc$)|(^sp$))");
 std::regex Operand::labelRegex("^(((&|\\$)?[a-zA-Z_]\\w*$)|(^\.bss$)|(^\.text$)|(^\.data$)|(^\.rodata$))");
@@ -25,10 +25,10 @@ Operand::Operand(const std::string op) : valid(true), text(op) {
             this->addressing = AddressingCode::IMMED;
         }
         else {
-            if (op.compare("pc")) {
+            if (op.compare("pc") == 0) {
                 this->text= "r7";
             }
-            else if(op.compare("sp")) {
+            else if(op.compare("sp") == 0) {
                 this->text = "r6";
             }
 

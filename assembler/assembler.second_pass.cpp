@@ -88,18 +88,23 @@ void Assembler::assembleTextSection(Section* current, size_t& locationCounter) {
             auto op1Addr = op1->getAddressing();
 
             //Only call is allowed to have first operand provided with immediate addressing.
-            if ((op1->getAddressing() == AddressingCode::IMMED) && (instr->getInstruciton() != InstructionCode::CALL) && (op1->getType() != OperandType::PSW)) {
+            if ((op1->getAddressing() == AddressingCode::IMMED) && (instr->getInstruciton() != InstructionCode::CALL) && (op1->getType() != OperandType::PSW) && (instr->getInstruciton() != InstructionCode::PUSH)) {
                 std::string line = this->lines[it->first];
                 throw AssemblingException("Addressing error, immediate operand cannot be destination", line, it->first);
             }
 
             //Writting addressing flags
             short addrCode = op1Addr;
-            firstHalf |= addrCode << OP1_ADDRESSING_FLAGS_OFFSET;
+            firstHalf |= addrCode << (((instr->getInstruciton() == PUSH) || (instr->getInstruciton() == CALL)) ? OP2_ADDRESSING_FLAGS_OFFSET : OP1_ADDRESSING_FLAGS_OFFSET);
 
             char op1Flags = this->getOperandCode(op1, current, instr, locationCounter, secondHalf, it->first);
 
-            firstHalf |= op1Flags << 5;
+            if ((instr->getInstruciton() == PUSH) || (instr->getInstruciton() == CALL)) {
+                firstHalf |= op1Flags;
+            }
+            else {
+                firstHalf |= op1Flags << 5;
+            }
 
             Operand* op2 = instr->getOperand2();
             
@@ -194,16 +199,16 @@ void Assembler::assembleDataSection(Section* current, size_t& locationCounter) {
 
                         locationCounter += bwl->getType() == DirectiveType::BYTE ? 1 : bwl->getType() == DirectiveType::WORD ? 2 : 4;
                         if (bwl->getType() == DirectiveType::BYTE) {
-                            if (val & MAX_BYTE_MASK) valid = false; 
-                            else {
+                            //if (val & MAX_BYTE_MASK) valid = false; 
+                            {
                                 relStream << std::setfill('0') << std::setw(2) << std::hex << val << ' ';
                                 binData->push_back((char)val);
                             }
                         }
 
                         else if (bwl->getType() == DirectiveType::WORD) {
-                            if (val & LIMIT_MASK) valid = false;
-                            else {
+                            //if (val & LIMIT_MASK) valid = false;
+                            {
                                 relStream << std::setfill('0') << std::setw(2) << std::hex << (val & 0xFF) << ' ';
                                 binData->push_back((char)(val & 0xFF));
                                 
@@ -229,7 +234,7 @@ void Assembler::assembleDataSection(Section* current, size_t& locationCounter) {
                     catch(std::invalid_argument e) {
                         valid = false;
                     }
-
+                    //valid = true; //Odlucio si u jednom trenutku da zbog negativnih brojeva radis samo odsecanje ucitanog broja
                     if (!valid) {
                         throw AssemblingException("Argument out of range", this->lines[it->first], it->first);
                     }
@@ -311,12 +316,22 @@ char Assembler::getOperandCode(Operand* op, Section* current, Instruction* instr
 
                 secondHalf = SWAP_BYTES(offset);
             }
+            else if (op->getType() == OperandType::PCREL_VAL) {
+                std::string label = op1Raw.substr(1);
+
+                short offset = this->resolveLabel(locationCounter, current, label, lineNumber, true);
+
+                secondHalf = SWAP_BYTES(offset);
+            }
+            else {
+                throw AssemblingException("Method assembleTextSection, unsupported operand type with immediate addressing", this->lines[lineNumber], lineNumber);
+            }
             break;
         }
 
         case AddressingCode::MEMDIR: {
             if (op->getType() == OperandType::MEMDIR_VAL) {
-                short offset = this->resolveLabel(locationCounter, current, op1Raw, lineNumber, (instr->getInstruciton() == InstructionCode::ADD_JMP) || (instr->getInstruciton() == InstructionCode::CALL)) ;
+                short offset = this->resolveLabel(locationCounter, current, op1Raw, lineNumber) ;
 
                 secondHalf = SWAP_BYTES(offset);
             }
@@ -332,6 +347,9 @@ char Assembler::getOperandCode(Operand* op, Section* current, Instruction* instr
 
                 secondHalf = SWAP_BYTES((short)val);
             }
+            else {
+                throw AssemblingException("Method assembleTextSection, unsupported operand type with memory direct addressing", this->lines[lineNumber], lineNumber);
+            }
             break;
         }
 
@@ -344,7 +362,7 @@ char Assembler::getOperandCode(Operand* op, Section* current, Instruction* instr
             if (op->getType() == OperandType::PCREL_VAL) {
                 regNum = 7;
                 off = op1Raw.substr(1);
-
+                
                 short offset = this->resolveLabel(locationCounter, current, op1Raw, lineNumber, true);
                 secondHalf = SWAP_BYTES(offset);
             }
@@ -391,9 +409,9 @@ bool Assembler::getImmediateValue(const std::string strVal, short& immed) {
         return false;
     }
 
-    if (val & LIMIT_MASK) {
-        return false;
-    }
+    // if (val & LIMIT_MASK) {
+    //     return false;
+    // }
 
     immed = (short)val;
     return true;
@@ -415,73 +433,48 @@ short Assembler::resolveLabel(const size_t& locationCounter, Section* current, c
 
     short offset = 0;
 
-    if (pcRel) {
-        if (current->getSectionCode() != SectionType::TEXT) {
-            std::string line = this->lines[lineNumber];
-            throw AssemblingException("Cannot have PC relative addressing outside text section", line, lineNumber);
-        }
 
-        if (s->getSectionCode() == current->getSectionCode()) {
-            offset = s->getOffset() - locationCounter;
-        }
-
-        else {
-            short relOffset = locationCounter - 2;
-
-            if (s->isLocal()) {
-                offset = s->getOffset() - s->getSectionPtr()->getOffset() - 2;
-                s = s->getSectionPtr();
-            }
-            
-            else {
-                offset = -2;
-            }
-
-            std::stringstream relStream;
-            
-            relStream << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << std::hex << relOffset 
-                      << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << "R_386_PC16" 
-                      << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << s->getNo();
-            std::string relocationRecord(relStream.str());
-
-            Relocation rel(relOffset, RelocationType::R_386_PC16, s->getNo());
-            this->relText.push_back(rel);
-
-            this->txtRelText.push_back(relocationRecord);
-        }
+    if (pcRel && (s->getSectionCode() == current->getSectionCode())) {
+        offset = s->getOffset() - locationCounter;
     }
+
     else {
-        short relOffset = locationCounter - 2;
+        short relOffset = locationCounter - 2 - current->getOffset(); //currentLocation-currentSection begin - 2
 
         if (s->isLocal()) {
-            offset = s->getOffset() - s->getSectionPtr()->getOffset();
-            s = s->getSectionPtr();
+            offset = s->getOffset() - s->getSectionPtr()->getOffset() - (pcRel ? 2 : 0);
+            if (s->getSectionPtr() != nullptr) {
+                s = s->getSectionPtr();
+            }
         }
+
         else {
-            offset = 0;
+            offset = (pcRel ? -2 : 0);
         }
 
         std::stringstream relStream;
-             
+            
         relStream << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << std::hex << relOffset 
-                  << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << "R_386_16" 
+                  << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << (pcRel ? "R_386_PC16" : "R_386_16")
                   << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << s->getNo();
         std::string relocationRecord(relStream.str());
 
-        Relocation rel(relOffset, RelocationType::R_386_16, s->getNo());
+        Relocation rel(relOffset, (pcRel ? RelocationType::R_386_PC16 : RelocationType::R_386_16), s->getNo());
         this->relText.push_back(rel);
 
         this->txtRelText.push_back(relocationRecord);
     }
+    
+
 
     return offset;
 }
 
-short Assembler::resolveDataLabel(const size_t& locationCounter, Section* current, const std::string lab, BWLDirective* bwl, const int lineNumber) {
+short Assembler::resolveDataLabel(const size_t& locationCounter, Section* current, const std::string lab, BWLDirective* bwl, const int lineNumber, const bool pcRel) {
     std::string label(lab);
  
     if (lab[0] == '&' || lab[0] == '$') {
-        label = label.substr(1);
+        throw AssemblingException("& and $ are not allowed in " + current->getName() + " section.", this->lines[lineNumber], lineNumber);
     }
     
     Symbol* s = this->symbolTable[label];
@@ -491,28 +484,46 @@ short Assembler::resolveDataLabel(const size_t& locationCounter, Section* curren
     }
     short offset = 0;
     size_t relOffset = locationCounter - current->getOffset() - (bwl->getType() == DirectiveType::WORD ? 2 : 4);
-    if (s->isLocal()) {
-        offset = relOffset;
-        
-        if (s->getSectionPtr() != nullptr)
-            s = s->getSectionPtr();
+    
+    if (s->getSectionCode() == current->getSectionCode()) {
+        offset = s->getOffset() - locationCounter - (bwl->getType() == DirectiveType::WORD ? 2 : bwl->getType() == DirectiveType::BYTE ? 1 : 4);
+    }
+    if(!pcRel) {
+        if (s->isLocal()) {
+            
+            
+            offset = (s->getSectionPtr() != nullptr ? (s->getOffset() - s->getSectionPtr()->getOffset()) : 0); 
 
-        if (s == nullptr) {
-            throw AssemblingException("Unknown error, method resolveDataLabel");
+            if (s->getSectionPtr() != nullptr)
+                s = s->getSectionPtr();
+
+            if (s == nullptr) {
+                throw AssemblingException("Unknown error, method resolveDataLabel");
+            }
+        }
+    }
+    else {
+        short relOffset = locationCounter - 2 - current->getOffset();
+
+        if (s->isLocal()) {
+            offset = s->getOffset() - s->getSectionPtr()->getOffset() - 2;
+            if (pcRel && s->getSectionPtr() != nullptr) {
+                s = s->getSectionPtr();
+            }
+        }
+
+        else {
+            offset = -2;
         }
     }
 
     std::string relTypeStr;
     RelocationType relType;
 
-    if (bwl->getType() == DirectiveType::WORD) {
-        relTypeStr = "R_386_16";
-        relType = RelocationType::R_386_16;
+    if (bwl->getType() == DirectiveType::WORD || bwl->getType() == DirectiveType::LONG) {
+        relTypeStr = pcRel ? "R_386_PC16" : "R_386_16";
+        relType = pcRel ? RelocationType::R_386_PC16 : RelocationType::R_386_16;
     }
-    else if (bwl->getType() == DirectiveType::LONG) {
-        relTypeStr = "R_386_32";
-        relType = RelocationType::R_386_32;
-    } 
     else {
         throw AssemblingException("Cannot rellocate this directive type", this->lines[lineNumber], lineNumber);
     }

@@ -1,6 +1,6 @@
 #include "utils.h"
 #include <string>
-
+#include "asm_declarations.h"
 using namespace ss;
 
 const std::string Utils::emptyChars = " \n\t\v\f\r";
@@ -55,14 +55,23 @@ std::string Utils::removeEmptySpaces(const std::string& str) {
     int j = 0;
     for(int i = 0; i < str.size(); i++) {
         if (Utils::emptyChars.find(str[i]) == std::string::npos) {
-            ++j;
+            newStr[j++] = str[i];
             continue;
         }
-
-        newStr[j++] = str[i];
     }
 
     newStr = newStr.substr(0, j);
 
     return newStr;
+}
+
+unsigned int Utils::findNextDivisibleByPow2(unsigned int pow, unsigned int start) {
+    unsigned int mask = 1;
+    mask = ~mask; //FFFF7
+    mask <<= pow; //FF.FF0000..00
+    mask = ~mask; //00..00FF...FF
+
+    for(;(start < MAX_SHORT) && (start && mask); ++start);
+
+    return start;
 }

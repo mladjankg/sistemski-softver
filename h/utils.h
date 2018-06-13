@@ -20,6 +20,8 @@ namespace ss {
 
         static std::string removeEmptySpaces(const std::string& str);
         
+        static unsigned int findNextDivisibleByPow2(unsigned int pow, unsigned int start);
+
         static const std::string empty;
 
         static std::regex labelRegex, decimalRegex;

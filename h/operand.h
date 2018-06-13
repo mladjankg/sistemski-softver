@@ -24,6 +24,8 @@ namespace ss {
         const AddressingCode getAddressing() const { return this->addressing; }
 
         const std::string& getRawText() const { return this->text; }
+
+        void setAddressing(const AddressingCode a) { this->addressing = a; }
     
     protected:
         friend class Assembler;

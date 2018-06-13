@@ -27,7 +27,7 @@ void Assembler::firstPass() {
     std::string line;
     
     
-    int locationCounter = 0;
+    int locationCounter = this->startAddress;
     int lineNumber = 0;
     char sectionCounter = 0;
     Section* previousSection = nullptr;
@@ -211,7 +211,7 @@ void Assembler::firstPass() {
                 }
             }
             
-            //Line contains directive like .byte .word .long .skip or .align
+            //Line contains directive like .char .word .long .skip or .align
             else {
                 this->parseDirective(newLine, directive, lineNumber, locationCounter, currentSection);
             }
@@ -274,9 +274,9 @@ void Assembler::parseDirective(const std::string& line, const std::string& direc
     bool skip = false;
     bool align = false;
     bool bwl = false;
-    if (directive.compare(".byte") == 0) {
+    if (directive.compare(".char") == 0) {
         if (currentSection == nullptr ? true : (currentSection->getSectionCode() == SectionType::TEXT)) {
-            throw AssemblingException("Directive .byte not allowed in this section", line, lineNumber);
+            throw AssemblingException("Directive .char not allowed in this section", line, lineNumber);
         }
         
         //locationCounter += 1;

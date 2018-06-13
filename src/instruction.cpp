@@ -186,6 +186,7 @@ void Instruction::parseInstruction(std::string line, int lineNumber) {
         //Parsing first operand.
         this->rawOperand1 = st.nextToken();
         this->rawOperand1 = Utils::trim(this->rawOperand1);
+        this->rawOperand1 = Utils::removeEmptySpaces(this->rawOperand1);
         if (this->rawOperand1.find_first_of(Utils::emptyChars) != std::string::npos) {
             throw AssemblingException("Syntax error", line, lineNumber);
         }
@@ -203,6 +204,7 @@ void Instruction::parseInstruction(std::string line, int lineNumber) {
         //Parsing second operand.
         this->rawOperand2 = st.nextToken();
         this->rawOperand2 = Utils::trim(this->rawOperand2);
+        this->rawOperand2 = Utils::removeEmptySpaces(this->rawOperand2);
         if (this->rawOperand2.find_first_of(Utils::emptyChars) != std::string::npos) {
             throw AssemblingException("Syntax error", line, lineNumber);
         }
@@ -223,6 +225,7 @@ void Instruction::parseInstruction(std::string line, int lineNumber) {
     }
     else {
         //Checking if operands are passed, and if instruction accepts operands.
+        operands = Utils::removeEmptySpaces(operands);
         if (operands.find_first_not_of(Utils::emptyChars) == std::string::npos) {
             
         
@@ -240,7 +243,7 @@ void Instruction::parseInstruction(std::string line, int lineNumber) {
                 throw AssemblingException("Invalid argument number", line, lineNumber);
             }
         }
-        operands = Utils::trim(operands);
+        //operands = Utils::trim(operands);
         
         if (operands.find_first_of(Utils::emptyChars) != std::string::npos) {
             throw AssemblingException("Syntax error", line, lineNumber);
@@ -261,8 +264,9 @@ void Instruction::parseInstruction(std::string line, int lineNumber) {
         if (this->instruction == InstructionCode::JMP) {
             this->size = 4;
             this->operand2 = this->operand1;
-            if (this->operand2->getType() == OperandType::MEMDIR_VAL) {
+            if (this->operand2->getType() == OperandType::PCREL_VAL) {
                 this->instruction = InstructionCode::ADD_JMP;
+                this->operand2->setAddressing(AddressingCode::IMMED);
             }
             else {
                 this->instruction = InstructionCode::MOV;

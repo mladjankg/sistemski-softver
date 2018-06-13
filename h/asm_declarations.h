@@ -30,7 +30,8 @@ namespace ss {
         SHR,
         RET,
         JMP,
-        ADD_JMP //One implementation of JMP, other is with mov
+        ADD_JMP, //One implementation of JMP, other is with mov
+        ALIGN_INST
     };
 
     //Addressing codes
