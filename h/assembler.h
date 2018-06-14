@@ -90,6 +90,8 @@ namespace ss {
         std::ofstream *objdumpOut;
 
         short startAddress;
+        
+        bool canAlign = true;
 
         std::map<std::string, Symbol*> symbolTable;
         

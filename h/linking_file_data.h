@@ -7,22 +7,35 @@
 #include "relocation.h"
 namespace ss {
     
-    struct SectionContent {
+    class SectionContent {
+    public:
         char* content = nullptr;
         size_t size = 0;
+        size_t startAddr = 0;
+
+
+        SectionContent() {}
 
         ~SectionContent() {
-            delete[] content;
+            //delete[] content;
+        }
+    private:
+
+        void copy(SectionContent& c) {
+            this->content = c.content;
+            this->size = c.size;
+            this->startAddr = c.startAddr;
         }
     };
 
-    struct LinkingFileData {
+    class LinkingFileData {
+    public:
         LinkingFileData() :  containsStart(false){}
 
         // bool operator< (const LinkingFileData& lf) const {
         //     return header.entry < lf.header.entry;
         // }
-
+        
         ELFHeader header;
         std::vector<SectionHeader> secHeaders;
         std::vector<Relocation> relText;
@@ -38,6 +51,12 @@ namespace ss {
         bool containsStart;
         size_t cumulativeSize = 0;
 
+        ~LinkingFileData() {
+            for(int i = 0; i < content.size(); i++) {
+                delete[] content[i].content;
+                content[i].content = nullptr;
+            }
+        }
     };
 }
 #endif

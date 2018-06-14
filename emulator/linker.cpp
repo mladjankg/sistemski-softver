@@ -2,6 +2,8 @@
 #include <vector>
 #include <fstream>
 #include <algorithm>
+#include <iostream>
+#include <iomanip>
 
 #include "elf.h"
 #include "linker.h"
@@ -13,22 +15,22 @@
 
 using namespace ss;
 
-bool compareEntry(LinkingFileData* l1, LinkingFileData* l2) {
-    return l1->header.entry < l2->header.entry;
-}
+// bool compareEntry(LinkingFileData* l1, LinkingFileData* l2) {
+//     return l1->header.entry < l2->header.entry;
+// }
 
-void Linker::linkFiles(std::vector<std::string>& files) {
+Linker::Linker() {}
+
+char* Linker::linkFiles(std::vector<std::string>& files) {
     if (files.size() == 0) {
         throw LinkingException("No input files");
     }
-    std::vector<LinkingFileData*> parsedFiles;
-
-    LinkingFileData merged;
 
     for (int i = 0; i < files.size(); i++) {
         LinkingFileData* lfd = this->parseFile(files[i]);
-        parsedFiles.push_back(lfd);
+        this->parsedFiles.push_back(lfd);
     }
+
 
     bool startFound = false;
     int startFile = 0;
@@ -37,7 +39,7 @@ void Linker::linkFiles(std::vector<std::string>& files) {
     for(int i = 0; i < parsedFiles.size(); ++i) {
         for(int j = 0; j < parsedFiles[i]->symbolTable.size(); ++j) {
             parsedFiles[i]->symbolMap[parsedFiles[i]->strTab[parsedFiles[i]->symbolTable[j].name]] = &parsedFiles[i]->symbolTable[j];
-            if (parsedFiles[i]->strTab[parsedFiles[i]->symbolTable[j].name].compare("START")) {
+            if (parsedFiles[i]->strTab[parsedFiles[i]->symbolTable[j].name].compare("START") == 0) {
                 if (startFound) {
                     throw LinkingException("Multiple START labels found in files " 
                                            + parsedFiles[startFile]->fileName + " "
@@ -52,9 +54,23 @@ void Linker::linkFiles(std::vector<std::string>& files) {
         }
     }
 
-    std::sort(parsedFiles.begin(), parsedFiles.end(), compareEntry);
+    if (!startFound) {
+        throw LinkingException("Missing program starting point.");
+    }
+
+    for (int i = 0; i < parsedFiles.size() - 1; ++i) {
+        for (int j = i + 1; j < parsedFiles.size(); ++j) {
+            if (parsedFiles[i]->header.entry > parsedFiles[j]->header.entry) {
+                LinkingFileData* lfdpom = parsedFiles[i];
+                parsedFiles[i] = parsedFiles[j];
+                parsedFiles[j] = lfdpom;
+            }
+        }
+    }
+    //std::sort(parsedFiles.begin(), parsedFiles.end(), compareEntry);
 
     size_t currentOffset = 0;
+
     for (int i = 0; i < parsedFiles.size(); ++i) {
         //Check if file overlaps with another file.
         if (parsedFiles[i]->header.entry < currentOffset) {
@@ -70,15 +86,141 @@ void Linker::linkFiles(std::vector<std::string>& files) {
         merged.content.push_back(parsedFiles[i]->content[0]);
         merged.cumulativeSize += parsedFiles[i]->content[0].size;
 
-        for(int j = 0; j < parsedFiles[i]->symbolTable.size(); ++j) {
+        std::vector<SymTabEntry>& symTab = parsedFiles[i]->symbolTable;
+        std::vector <std::string>& strTab =  parsedFiles[i]->strTab;
+        for(int j = 0; j < symTab.size(); ++j) {
+            std::string& name = strTab[symTab[j].name];
+            if ((name.compare(".data") == 0) || (name.compare(".text") == 0) || (name.compare(".rodata") == 0) || (name.compare(".bss") == 0)) {
+                continue;
+            }
+            if (symTab[j].section == SectionType::UDF) {
+                continue;
+            }
+            if (merged.symbolMap.find(name) != merged.symbolMap.end()) {
+              
+                throw LinkingException("Found multiple definitions of symbol " + strTab[symTab[j].name]);
+            }
             
+            merged.symbolMap[strTab[symTab[j].name]] = &symTab[j];
         }
     }
+    char* mergedContent = new char[((unsigned)MAX_SHORT + 1)];
 
+    //merging content
+    for (int i = 0; i < merged.content.size(); i++) {
+        size_t start = merged.content[i].startAddr;
+        for(int j = start; j < start + merged.content[i].size; ++j) {
+            mergedContent[j] = merged.content[i].content[j - start];
+        }
+    }
+   
+
+
+    for (int i = 0; i < parsedFiles.size(); ++i) {
+        //LinkingFileData* f = parsedFiles[i];
+        //this->resolveSectionSymbols(mergedContent, parsedFiles[i]->relData, parsedFiles[i], SectionType::DATA);
+        //this->resolveSectionSymbols(mergedContent, parsedFiles[i]->relRoData, parsedFiles[i], SectionType::RO_DATA);
+        this->resolveSectionSymbols(mergedContent, parsedFiles[i]->relText, parsedFiles[i], SectionType::TEXT);
+       
+    }
+
+    std::cout<<"\n";
+
+    for (int i = 0; i < parsedFiles.size(); ++i) {
+        size_t start = parsedFiles[i]->header.entry;
+        size_t size = parsedFiles[i]->content[0].size;
+        for (int j = start; j < start + size; j++) {
+            std::cout<<std::hex<<std::setfill('0')<<std::setw(2)<<((short)mergedContent[j] & 0xFF) << " ";
+        }
+    }
+    // for (int i = 0; i < merged.content.size(); i++) {
+    //     size_t start = merged.content[i].startAddr;
+    //     for(int j = 0; j < merged.content[i].size; ++j) {
+    //         std::cout<<std::hex<<std::setfill('0')<<std::setw(2)<<((short)merged.content[i].content[j] & 0xFF) << " ";
+    //     }
+        
+    // }
+
+    for(int i = 0; i < parsedFiles.size(); ++i) {
+        delete parsedFiles[i];
+    }
+
+    return mergedContent;
 
 }
 
-void Linker::linkFiles(const char* files[], int num) {
+SymTabEntry* Linker::findSymbolById(int id, LinkingFileData* file) {
+    std::string& name = file->strTab[file->symbolTable[id].name];
+
+    
+    for (int i = 0; i < file->symbolTable.size(); i++) {
+        if ((file->symbolTable[i].id == id) && (file->symbolTable[i].section != SectionType::UDF))
+            return &file->symbolTable[i];
+        
+    }
+
+    for (auto it = merged.symbolMap.begin(); it != merged.symbolMap.end(); ++it)
+        if (it->second->id == id) 
+            return it->second;
+    
+
+    return nullptr;
+}
+
+void Linker::resolveSectionSymbols(char* mergedContent, std::vector<Relocation>& rel, LinkingFileData* file, SectionType section) {
+    if (rel.size() == 0) return;
+
+    SectionHeader* sh = nullptr;
+
+    for (int i = 0; i < file->secHeaders.size(); ++i) {
+        if (file->secHeaders[i].type == section) {
+            sh = &file->secHeaders[i];
+            break;
+        }
+    }
+
+    if (sh == nullptr) {
+        throw LinkingException("Unespected error in method resolveSectionSymbols, section not found.");
+    }
+    for(int j = 0; j < rel.size(); ++j) {
+        Relocation& r = rel[j];
+        char* refptr = (mergedContent + r.offset + file->header.entry + sh->offset - file->header.ehSize);
+        SymTabEntry* symbol = nullptr;
+
+        symbol = this->findSymbolById(r.id, file);
+        
+        short oldLow = (*refptr) & 0xFF;
+        short oldHigh = *(refptr + 1) & 0xFF;
+
+        ElfWord oldValue = (oldHigh << 8) | oldLow;
+        ElfWord newValue = 0;
+        if (symbol == nullptr) {
+            throw LinkingException("Symbol " + file->strTab[file->symbolTable[r.id].name] + " not defined.");
+        }
+
+        if (r.type == RelocationType::R_386_PC16) {
+            ElfWord refaddr = r.offset + sh->offset - file->header.ehSize; // + merged.symbolMap[file->strTab[file->symbolTable[r.id].name]]->offset;
+
+            newValue = (ElfWord)(symbol->offset + oldValue - refaddr);
+        }
+
+        //std::cout << "Relocating symbol " + file->strTab[symbol->name] << " old value :";
+        if (r.type == RelocationType::R_386_16) {
+            newValue = (ElfWord)(symbol->offset + oldValue);
+        }
+
+        char newHigh = (newValue >> 8) & 0xFF;
+        char newLow = (newValue) & 0xFF;
+
+        *refptr = newLow;
+        *(refptr + 1) = newHigh;
+         std::cout << "Relocating symbol " + file->strTab[symbol->name] 
+                    << " old value:" << std::hex << (short)oldLow << ' ' <<std::hex << (short)oldHigh
+                    << " new value:" << std::hex << (short)newLow << ' ' << std::hex << (short)newHigh << std::endl;
+   }
+}
+
+char* Linker::linkFiles(const char* files[], int num) {
     std::vector<std::string> filesVec;
 
     if (num <= 0) {
@@ -103,6 +245,7 @@ LinkingFileData* Linker::parseFile(const std::string& file) {
 
     StringTokenizer st("/");
 
+    st.tokenize(file);
     while(st.hasNext()) {
         std::string &str = st.nextToken();
         if (str.compare("") != 0)
@@ -150,10 +293,14 @@ LinkingFileData* Linker::parseFile(const std::string& file) {
         }
     }
     input.seekg(contentBegin, std::ios_base::beg);
+    
     SectionContent content;
     content.content = new char[contentSize];
+    
     input.read(content.content, contentSize);
     content.size = contentSize;
+    content.startAddr = lf->header.entry;
+    
     lf->content.push_back(content);
     input.clear();
 
@@ -206,6 +353,8 @@ LinkingFileData* Linker::parseFile(const std::string& file) {
                 break;
         }
     }
+
+    return lf;
 }
 
 void Linker::readRelocationTable(std::ifstream& input, SectionHeader& header, std::vector<Relocation>& storage) {

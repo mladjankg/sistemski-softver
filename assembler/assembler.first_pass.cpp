@@ -91,6 +91,8 @@ void Assembler::firstPass() {
                     throw AssemblingException(line.c_str(), lineNumber);
                 }
             }
+            currentSection->increaseParsed();
+            this->canAlign = false;
             if (undefined) {
                 it->second->setSectionCode(currentSection->getSectionCode());
                 it->second->setSectionPtr(currentSection);
@@ -216,7 +218,7 @@ void Assembler::firstPass() {
                 this->parseDirective(newLine, directive, lineNumber, locationCounter, currentSection);
             }
           
-            
+            this->canAlign = true;
             continue;
         }
         //=====================================================================================
@@ -235,6 +237,7 @@ void Assembler::firstPass() {
                 currentSection->increaseParsed();
                 locationCounter += i->getInstructionSize();
                 
+                this->canAlign = true;
             }
             else {
                 throw AssemblingException("Assembling error", line, lineNumber);
@@ -246,7 +249,7 @@ void Assembler::firstPass() {
     }
     
     if (currentSection != nullptr) {
-        currentSection->setSectionSize(previousSection == nullptr ? locationCounter : locationCounter - previousSection->getSectionSize());
+        currentSection->setSectionSize(previousSection == nullptr ? locationCounter - this->startAddress : locationCounter - currentSection->getOffset());
     }
 
     else {
@@ -326,10 +329,13 @@ void Assembler::parseDirective(const std::string& line, const std::string& direc
     }
     
     else if (directive.compare(".align") == 0) {
-        if (currentSection->getNParsed() != 0) {
-            throw AssemblingException("Directive .align can only be written on the beggining of the section.", line, lineNumber);
+        if ((currentSection->getNParsed() != 0) && (currentSection->getSectionCode() == SectionType::TEXT)) {
+            throw AssemblingException("Directive .align can only be written on the beggining of the text section.", line, lineNumber);
         }
 
+        if (!canAlign) {
+            throw AssemblingException("Directive .aling cannot be written immediatly after label.", line, lineNumber);
+        }
         if (!std::regex_match(ops, Utils::decimalRegex)) {
             throw AssemblingException(".align invalid operand", line, lineNumber);
         }
@@ -339,11 +345,33 @@ void Assembler::parseDirective(const std::string& line, const std::string& direc
         if (pow > 14) {
             throw AssemblingException(".align operand out of range", line, lineNumber);
         }
-        unsigned int align = 1;
-        align <<= pow;
-        currentSection->setAlign(align);
-    }
 
+        int next = Utils::findNextDivisibleByPow2(pow, locationCounter);
+        switch(currentSection->getSectionCode()) {
+            case SectionType::DATA:
+            case SectionType::RO_DATA: { 
+                d = new AlignDirective(next - locationCounter);
+                break;
+            }
+            case SectionType::TEXT: {
+                Instruction *i = new Instruction(next - locationCounter);
+                this->instructions[lineNumber] = i;
+                break;
+            }
+            case SectionType::BSS: {
+                locationCounter = next;
+                break;
+            }
+        }
+
+        locationCounter = next;
+        // unsigned int align = 1;
+        // align <<= pow;
+        // currentSection->setAlign(align);
+    }
+    else {
+        throw AssemblingException("Unknown directive " + directive, line, lineNumber);
+    }
     currentSection->increaseParsed();
 
     if (currentSection->getSectionCode() == SectionType::BSS) {
@@ -383,7 +411,7 @@ void Assembler::parseDirective(const std::string& line, const std::string& direc
 
 void Assembler::changeSection(const std::string& sectionName, SectionType sectionType, Access access, int locationCounter, Section*& previousSection, Section*& currentSection) {
     
-    size_t sectionSize = previousSection ? locationCounter - currentSection->getOffset() : locationCounter;
+    size_t sectionSize = previousSection != nullptr ? (locationCounter - currentSection->getOffset()) : (locationCounter - this->startAddress);
 
     previousSection = currentSection;
     if (previousSection != nullptr) {

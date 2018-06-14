@@ -26,10 +26,10 @@ using namespace ss;
 
 void Assembler::secondPass() {
     Section* currentSection = nullptr;
-    size_t locationCounter = 0;
+    size_t locationCounter = this->startAddress;
     unsigned int lineNumber = 0;
 
-    for (char i = 0; i < SECTION_NUMBER || this->sectionOrder[i] == SectionType::UDF; ++i) {
+    for (char i = 0; (i < SECTION_NUMBER) && (this->sectionOrder[i] != SectionType::UDF); ++i) {
         std::string sectionName = this->sectionOrder[i] == SectionType::TEXT ? ".text" :
             this->sectionOrder[i] == SectionType::DATA ? ".data" :
             this->sectionOrder[i] == SectionType::RO_DATA ? ".rodata" : ".bss";
@@ -67,7 +67,19 @@ void Assembler::assembleTextSection(Section* current, size_t& locationCounter) {
     
     for (auto it = this->instructions.begin(); it != this->instructions.end(); ++it) {
         Instruction* instr = it->second;
-        
+
+        if (instr->getInstruciton() == InstructionCode::ALIGN_INST) {
+            int size = instr->getInstructionSize();
+            short byte = 0;
+            for (int i = 0; i < size; i++) {
+                relStream << "00 "; 
+                
+                this->textBin.push_back((char)byte);
+            }
+            locationCounter = size;
+            continue;
+        }
+
         //First two and potential second two bytes of instruction
         short firstHalf = 0, secondHalf = 0;
         locationCounter += instr->getInstructionSize();
@@ -184,6 +196,20 @@ void Assembler::assembleDataSection(Section* current, size_t& locationCounter) {
             }
             locationCounter += size;
         }
+        else if(d->getType() == DirectiveType::ALIGN) {
+            int size = ((AlignDirective*)d)->getSize();
+            short byte = 0;
+            for (int i = 0; i < size; i++) {
+                relStream << "00 "; 
+                
+                if (current->getSectionCode() == DATA)
+                    this->dataBin.push_back((char)byte);
+                else if (current->getSectionCode() == RO_DATA) 
+                    this->roDataBin.push_back((char)byte);
+            }
+            locationCounter = size;
+            continue;
+        }
         else {
             BWLDirective* bwl = (BWLDirective*)d;
             auto operands = bwl->getOperands();
@@ -201,7 +227,7 @@ void Assembler::assembleDataSection(Section* current, size_t& locationCounter) {
                         if (bwl->getType() == DirectiveType::BYTE) {
                             //if (val & MAX_BYTE_MASK) valid = false; 
                             {
-                                relStream << std::setfill('0') << std::setw(2) << std::hex << val << ' ';
+                                relStream << std::setfill('0') << std::setw(2) << std::hex << (val & 0xFF) << ' ';
                                 binData->push_back((char)val);
                             }
                         }
@@ -212,8 +238,8 @@ void Assembler::assembleDataSection(Section* current, size_t& locationCounter) {
                                 relStream << std::setfill('0') << std::setw(2) << std::hex << (val & 0xFF) << ' ';
                                 binData->push_back((char)(val & 0xFF));
                                 
-                                relStream << std::setfill('0') << std::setw(2) << std::hex << (val >> 8) << ' ';
-                                binData->push_back((char)(val >> 8));
+                                relStream << std::setfill('0') << std::setw(2) << std::hex << ((val >> 8) & 0xFF) << ' ';
+                                binData->push_back((char)((val >> 8) & 0xFF));
                             }
                         }
 
@@ -360,7 +386,7 @@ char Assembler::getOperandCode(Operand* op, Section* current, Instruction* instr
             char regNum = 0;
             
             if (op->getType() == OperandType::PCREL_VAL) {
-                regNum = 7;
+                 regNum = 7;
                 off = op1Raw.substr(1);
                 
                 short offset = this->resolveLabel(locationCounter, current, op1Raw, lineNumber, true);

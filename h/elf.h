@@ -61,6 +61,9 @@ namespace ss {
         SymTabEntry() {}
         SymTabEntry(ElfWord name, ElfWord offset, SectionType section, ElfWord id)
             : name(name), offset(offset), section(section), id(id) {}
+        bool operator<(const SymTabEntry& s) const {
+            return id < s.id;
+        } 
         ElfWord name;             //Indeks u tabeli stringova
         ElfWord offset;           //Offset simbola u odnosu na pocetak sekcije
         //ElfWord size;

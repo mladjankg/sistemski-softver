@@ -13,7 +13,7 @@ std::regex Instruction::ne("(([A-Za-z]{2})|([A-Za-z]{3})|([A-Za-z]{4}))(ne$)");
 std::regex Instruction::gt("(([A-Za-z]{2})|([A-Za-z]{3})|([A-Za-z]{4}))(gt$)");
 std::regex Instruction::unc("(^(([A-Za-z]{2})|([A-Za-z]{3})|([A-Za-z]{4}))$)");
 
-const char Instruction::operandNumber[] = {2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 1, 1, 0, 2, 2, 2, 0, 1, 2};
+const char Instruction::operandNumber[] = {2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 1, 1, 0, 2, 2, 2, 0, 1, 2, 0};
 
 void Instruction::parseInstruction(std::string line, int lineNumber) {
     

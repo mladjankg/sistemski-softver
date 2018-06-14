@@ -2,22 +2,30 @@
 #define _SS_LINKER_H
 #include <vector>
 #include <string>
-
+#include "linking_file_data.h"
+#include "elf.h"
 namespace ss {
     class Relocation;
-    struct SectionHeader;
-    struct LinkingFileData;
     class Linker {
     public:
-        void linkFiles(std::vector<std::string>&);
+        Linker();
+        char* linkFiles(std::vector<std::string>&);
         
-        void linkFiles(const char* files[], int num);
+        char* linkFiles(const char* files[], int num);
         
+    private:
+        void readRelocationTable(std::ifstream&, SectionHeader&, std::vector<Relocation>&);
+
         //This method parses one binary file and returns it's ELF format representation.
         LinkingFileData* parseFile(const std::string&);
     
-    private:
-        void readRelocationTable(std::ifstream&, SectionHeader&, std::vector<Relocation>&);
+        void resolveSectionSymbols(char* mergedContent, std::vector<Relocation>& rel, LinkingFileData* file, SectionType section);
+     
+        SymTabEntry* findSymbolById(int id, LinkingFileData* file);
+
+        LinkingFileData merged;
+
+        std::vector<LinkingFileData*> parsedFiles;
     };
 }
 

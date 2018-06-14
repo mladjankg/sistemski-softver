@@ -12,6 +12,7 @@ std::string Symbol::toString() const {
     os << std::left << std::setw(FIELD_LENGTH) << std::setfill(' ') << this->getName() << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH);
     std::string sectionName;
     size_t offset;
+    size_t size = 0;
     if (this->getSectionPtr() != nullptr) {
         sectionName = this->getSectionPtr()->getName().substr(1);
         offset = this->getOffset() - this->getSectionPtr()->getOffset();
@@ -25,9 +26,11 @@ std::string Symbol::toString() const {
         else {
             sectionName = this->getName().substr(1);
             offset = this->getOffset();
+            size = ((Section*)this)->getSectionSize();
         }
     }
-    os << sectionName << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << offset << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << this->getNo();
+    os << sectionName << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << offset 
+                        << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << size << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << this->getNo();
     
     return os.str();
 }

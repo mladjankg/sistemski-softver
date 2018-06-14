@@ -66,12 +66,14 @@ std::string Utils::removeEmptySpaces(const std::string& str) {
 }
 
 unsigned int Utils::findNextDivisibleByPow2(unsigned int pow, unsigned int start) {
+    if (pow == 0) return start;
+    pow = pow - 1;
     unsigned int mask = 1;
     mask = ~mask; //FFFF7
     mask <<= pow; //FF.FF0000..00
     mask = ~mask; //00..00FF...FF
 
-    for(;(start < MAX_SHORT) && (start && mask); ++start);
+    for(;(start < MAX_SHORT) && (start & mask); ++start);
 
     return start;
 }

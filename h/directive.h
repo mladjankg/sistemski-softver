@@ -61,6 +61,19 @@ namespace ss {
 
         std::list<std::string> operands;
     };
+
+    class AlignDirective :public Directive {
+    public:
+
+        AlignDirective(int pow): Directive(DirectiveType::ALIGN), pow(pow) {}
+
+        int getSize() const {
+            return pow;
+        }
+
+    private:
+        int pow;
+    };
 }
 #endif /* _SS_DIRECTIVE_H_ */
 

@@ -38,7 +38,7 @@ namespace ss {
 
 
 
-        static const char operandNumber[19]; 
+        static const char operandNumber[20]; 
 
         ~Instruction();
     private:

@@ -52,7 +52,8 @@ void Assembler::writePrettyOutput() {
     if (this->symbolTable.size() != 0) {
         *this->objdumpOut << "#symbol table" << std::endl << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << "#name" << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) 
                                                       << "section" << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) 
-                                                      << "value" << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH)  
+                                                      << "value" << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH)
+                                                      << "size" << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH)   
                                                       << "no" << std::endl;
 
         for(auto it = this->symbolTable.begin(); it != this->symbolTable.end(); ++it) {
@@ -122,98 +123,106 @@ void Assembler::writeOutput() {
                   *dataHd = nullptr,
                   *roDataHd = nullptr,
                   *bssHd = nullptr;
-
+    size_t bssSize = 0;
     for(int i = 0; i < SECTION_NUMBER && this->sectionOrder[i] != SectionType::UDF; ++i) {
-        if (this->sectionOrder[i] == SectionType::TEXT) 
+        if (this->sectionOrder[i] == SectionType::TEXT) {
             hasText = true;
 
-        if (this->sectionOrder[i] == SectionType::RO_DATA)
+            size_t size = this->textBin.size();
+            if (size > maxSecSize) {
+                throw AssemblingException("Section text exceeds maximum allowed size.");
+            }
+
+            Section *s = (Section*)this->symbolTable[".text"];
+
+            sectionHds[sectionHdNum] = SectionHeader(s->getSectionCode(), s->getAccessRights(), currentOffset, (ElfWord)size, s->getAlign(), 0);
+
+            currentOffset += sectionHds[sectionHdNum].size;
+
+            if (currentOffset > maxSecSize) {
+                throw AssemblingException("Output file exceeds maximum allowed size.");
+            }
+            ++sectionHdNum;
+        }
+            
+
+        if (this->sectionOrder[i] == SectionType::RO_DATA) {
+            size_t size = this->roDataBin.size();
+            if (size > maxSecSize) {
+                throw AssemblingException("Section rodata exceeds maximum allowed size.");
+            }
+
+            Section *s = (Section*)this->symbolTable[".rodata"];
+
+            sectionHds[sectionHdNum] = SectionHeader(s->getSectionCode(), s->getAccessRights(), currentOffset, (ElfWord)size, s->getAlign(), 0);
+
+            currentOffset += sectionHds[sectionHdNum].size;
+
+            if (currentOffset > maxSecSize) {
+                throw AssemblingException("Output file exceeds maximum allowed size.");
+            }
+            ++sectionHdNum;
             hasRoData = true;
-        
-        if (this->sectionOrder[i] == SectionType::DATA)
+        }
+        if (this->sectionOrder[i] == SectionType::DATA) {
+            size_t size = this->dataBin.size();
+            if (size > maxSecSize) {
+                throw AssemblingException("Section data exceeds maximum allowed size.");
+            }
+
+            Section *s = (Section*)this->symbolTable[".data"];
+
+            sectionHds[sectionHdNum] = SectionHeader(s->getSectionCode(), s->getAccessRights(), currentOffset, (ElfWord)size, s->getAlign(), 0);
+            
+            currentOffset += sectionHds[sectionHdNum].size;
+
+            if (currentOffset > maxSecSize) {
+                throw AssemblingException("Output file exceeds maximum allowed size.");
+            }
+            ++sectionHdNum;
             hasData = true;
-        
-        if (this->sectionOrder[i] == SectionType::BSS)
+        }
+        if (this->sectionOrder[i] == SectionType::BSS) {
+            Section *s = (Section*)this->symbolTable[".bss"];
+            size_t size = s->getSectionSize();
+            bssSize = size;
+            if (size > maxSecSize) {
+                throw AssemblingException("Section bss exceeds maximum allowed size.");
+            }
+
+            sectionHds[sectionHdNum] = SectionHeader(s->getSectionCode(), s->getAccessRights(), currentOffset, (ElfWord)size, s->getAlign(), 0);
+            
+            currentOffset += sectionHds[sectionHdNum].size;
+
+            if (currentOffset > maxSecSize) {
+                throw AssemblingException("Output file exceeds maximum allowed size.");
+            }
+            ++sectionHdNum;
             hasBss = true;
+        }
     }
 
 
     if (hasText) {
         
-        size_t size = this->textBin.size();
-        if (size > maxSecSize) {
-            throw AssemblingException("Section text exceeds maximum allowed size.");
-        }
-
-        Section *s = (Section*)this->symbolTable[".text"];
-
-        sectionHds[sectionHdNum] = SectionHeader(s->getSectionCode(), s->getAccessRights(), currentOffset, (ElfWord)size, s->getAlign(), 0);
-
-        currentOffset += sectionHds[sectionHdNum].size;
-
-        if (currentOffset > maxSecSize) {
-            throw AssemblingException("Output file exceeds maximum allowed size.");
-        }
-        ++sectionHdNum;
+        
     }
 
     if (hasRoData) {
 
-        size_t size = this->roDataBin.size();
-        if (size > maxSecSize) {
-            throw AssemblingException("Section rodata exceeds maximum allowed size.");
-        }
-
-        Section *s = (Section*)this->symbolTable[".rodata"];
-
-        sectionHds[sectionHdNum] = SectionHeader(s->getSectionCode(), s->getAccessRights(), currentOffset, (ElfWord)size, s->getAlign(), 0);
-
-        currentOffset += sectionHds[sectionHdNum].size;
-
-        if (currentOffset > maxSecSize) {
-            throw AssemblingException("Output file exceeds maximum allowed size.");
-        }
-        ++sectionHdNum;
+        
     }
 
     //Writting data section
     if (hasData) {
 
-        size_t size = this->dataBin.size();
-        if (size > maxSecSize) {
-            throw AssemblingException("Section data exceeds maximum allowed size.");
-        }
-
-        Section *s = (Section*)this->symbolTable[".data"];
-
-        sectionHds[sectionHdNum] = SectionHeader(s->getSectionCode(), s->getAccessRights(), currentOffset, (ElfWord)size, s->getAlign(), 0);
         
-        currentOffset += sectionHds[sectionHdNum].size;
-
-        if (currentOffset > maxSecSize) {
-            throw AssemblingException("Output file exceeds maximum allowed size.");
-        }
-        ++sectionHdNum;
     }
 
     //Writting bss section
-    size_t bssSize = 0;
+
     if (hasBss) {
-        Section *s = (Section*)this->symbolTable[".bss"];
-        size_t size = s->getSectionSize();
-        bssSize = size;
-        if (size > maxSecSize) {
-            throw AssemblingException("Section bss exceeds maximum allowed size.");
-        }
-
-        sectionHds[sectionHdNum] = SectionHeader(s->getSectionCode(), s->getAccessRights(), currentOffset, (ElfWord)size, s->getAlign(), 0);
         
-        currentOffset += sectionHds[sectionHdNum].size;
-
-        if (currentOffset > maxSecSize) {
-            throw AssemblingException("Output file exceeds maximum allowed size.");
-        }
-        ++sectionHdNum;
     }
 
     std::vector<SymTabEntry> symTabEntries;
@@ -228,18 +237,42 @@ void Assembler::writeOutput() {
         Symbol* s = it->second;
         
         ElfWord offset;
+        #ifdef RELATIVE_OFFSET
         if (s->getSectionPtr() != nullptr) {   
             offset = (ElfWord)(s->getOffset() - s->getSectionPtr()->getOffset());
         }
         else {
             offset = 0;
         }
+        #else
+        offset = s->getOffset();
+        #endif
+        
 
         symTabEntries.push_back(SymTabEntry(symCnt, offset, s->getSectionCode(), s->getNo()));
         symTabNames.push_back(s->getName());
         size_t size = sizeof(int) + s->getName().length();
         strTabSize += (ElfWord)(size); 
         symCnt++;
+    }
+
+    //Sorting symbolTable
+    for (int i = 0; i < symTabEntries.size() - 1; ++i) {
+        for(int j = i + 1; j < symTabEntries.size(); ++j) {
+            if (symTabEntries[j] < symTabEntries[i]) {
+                SymTabEntry s = symTabEntries[i];
+                symTabEntries[i] = symTabEntries[j];
+                symTabEntries[j] = s;
+
+                std::string str = symTabNames[i];
+                symTabNames[i] = symTabNames[j];
+                symTabNames[j] = str;
+            }
+        }
+    }
+
+    for (int i = 0; i < symTabEntries.size(); i++) {
+        symTabEntries[i].name = i;
     }
 
     sectionHds[sectionHdNum] = SectionHeader(SectionType::SYMB_TAB, Access::RD, currentOffset, (ElfWord)(symTabEntries.size() * sizeof(SymTabEntry)), 0, sizeof(SymTabEntry));
