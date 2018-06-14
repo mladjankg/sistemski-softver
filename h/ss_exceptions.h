@@ -49,5 +49,17 @@ namespace ss {
     private:
         std::string message;
     };
+
+
+    class EmulatingException: public std::exception {
+    public:
+        EmulatingException(std::string msg) : message(msg) {}
+
+        const char* what() const throw() {
+            return message.c_str();
+        }
+    private:
+        std::string message;
+    };
 }
 #endif

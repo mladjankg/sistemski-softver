@@ -7,6 +7,7 @@
 
 #include "elf.h"
 #include "linker.h"
+#include "executable.h"
 #include "relocation.h"
 #include "ss_exceptions.h"
 #include "asm_declarations.h"
@@ -21,7 +22,7 @@ using namespace ss;
 
 Linker::Linker() {}
 
-char* Linker::linkFiles(std::vector<std::string>& files) {
+Executable Linker::linkFiles(std::vector<std::string>& files) {
     if (files.size() == 0) {
         throw LinkingException("No input files");
     }
@@ -34,7 +35,7 @@ char* Linker::linkFiles(std::vector<std::string>& files) {
 
     bool startFound = false;
     int startFile = 0;
-
+    unsigned short startAddress = 0;
     //Mapping symbols for each file to it's name and looking for start symbol.
     for(int i = 0; i < parsedFiles.size(); ++i) {
         for(int j = 0; j < parsedFiles[i]->symbolTable.size(); ++j) {
@@ -49,6 +50,11 @@ char* Linker::linkFiles(std::vector<std::string>& files) {
                     startFound = true;
                     startFile = i;
                     parsedFiles[i]->containsStart = true;
+                    #ifdef RELATIVE_OFFSET
+                    //TODO: Implement this
+                    #else
+                    startAddress = parsedFiles[i]->symbolTable[j].offset;
+                    #endif
                 }
             }
         }
@@ -145,8 +151,11 @@ char* Linker::linkFiles(std::vector<std::string>& files) {
         delete parsedFiles[i];
     }
 
-    return mergedContent;
+    Executable e;
+    e.content = mergedContent;
+    e.startAddress = startAddress;
 
+    return e;
 }
 
 SymTabEntry* Linker::findSymbolById(int id, LinkingFileData* file) {
@@ -220,7 +229,7 @@ void Linker::resolveSectionSymbols(char* mergedContent, std::vector<Relocation>&
    }
 }
 
-char* Linker::linkFiles(const char* files[], int num) {
+Executable Linker::linkFiles(const char* files[], int num) {
     std::vector<std::string> filesVec;
 
     if (num <= 0) {
@@ -230,7 +239,8 @@ char* Linker::linkFiles(const char* files[], int num) {
         filesVec.push_back(files[i]);
     }
 
-    this->linkFiles(filesVec);
+    return this->linkFiles(filesVec);
+
 }
 
 LinkingFileData* Linker::parseFile(const std::string& file) {
