@@ -124,8 +124,8 @@ Executable Linker::linkFiles(std::vector<std::string>& files) {
 
     for (int i = 0; i < parsedFiles.size(); ++i) {
         //LinkingFileData* f = parsedFiles[i];
-        //this->resolveSectionSymbols(mergedContent, parsedFiles[i]->relData, parsedFiles[i], SectionType::DATA);
-        //this->resolveSectionSymbols(mergedContent, parsedFiles[i]->relRoData, parsedFiles[i], SectionType::RO_DATA);
+        this->resolveSectionSymbols(mergedContent, parsedFiles[i]->relData, parsedFiles[i], SectionType::DATA);
+        this->resolveSectionSymbols(mergedContent, parsedFiles[i]->relRoData, parsedFiles[i], SectionType::RO_DATA);
         this->resolveSectionSymbols(mergedContent, parsedFiles[i]->relText, parsedFiles[i], SectionType::TEXT);
        
     }
@@ -139,6 +139,7 @@ Executable Linker::linkFiles(std::vector<std::string>& files) {
             std::cout<<std::hex<<std::setfill('0')<<std::setw(2)<<((short)mergedContent[j] & 0xFF) << " ";
         }
     }
+    std::cout << std::flush;
     // for (int i = 0; i < merged.content.size(); i++) {
     //     size_t start = merged.content[i].startAddr;
     //     for(int j = 0; j < merged.content[i].size; ++j) {
