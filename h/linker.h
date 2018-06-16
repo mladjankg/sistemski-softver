@@ -5,14 +5,15 @@
 #include "linking_file_data.h"
 #include "elf.h"
 #include "executable.h"
+
 namespace ss {
     class Relocation;
     class Linker {
     public:
         Linker();
-        Executable linkFiles(std::vector<std::string>&);
+        Executable* linkFiles(std::vector<std::string>&);
         
-        Executable linkFiles(const char* files[], int num);
+        Executable* linkFiles(const char* files[], int num);
         
     private:
         void readRelocationTable(std::ifstream&, SectionHeader&, std::vector<Relocation>&);

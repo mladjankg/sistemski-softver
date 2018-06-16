@@ -10,7 +10,7 @@
 #define SECTION_NUMBER 4
 #define EXTENDED_SECTION_NUMBER 10
 
-#define STACK_START 0xFF7F
+#define STACK_START 0xFF80
 #define STACK_SIZE 256
 
 #define IO_RESERVED 0xFF80
@@ -58,11 +58,12 @@ namespace ss {
         AL  // unconditional
     };
 
+    //ZAMENIO SI RD I EX ZA SLUCAJ DA DODJE NEGDE DO GRESKE
     enum Access: char {
-        RD,
+        EX,        
         WR,
         RW,
-        EX   
+        RD
     };
 
     enum SectionType: char {

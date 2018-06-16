@@ -53,7 +53,8 @@ void Assembler::writePrettyOutput() {
         *this->objdumpOut << "#symbol table" << std::endl << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << "#name" << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) 
                                                       << "section" << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) 
                                                       << "value" << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH)
-                                                      << "size" << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH)   
+                                                      << "size" << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH)  
+                                                      << "access" << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH)   
                                                       << "no" << std::endl;
 
         for(auto it = this->symbolTable.begin(); it != this->symbolTable.end(); ++it) {
@@ -323,25 +324,25 @@ void Assembler::writeOutput() {
     header.shNum = sectionHdNum;
 
     this->output->write((char*)&header, sizeof(ELFHeader)); 
-    std::cout  << this->output->tellp() << std::flush;
+    //std::cout  << this->output->tellp() << std::flush;
     for(int i = 0; i < SECTION_NUMBER && this->sectionOrder[i] != SectionType::UDF; ++i) {
         if (this->sectionOrder[i] == SectionType::TEXT) {
             this->output->write(&this->textBin[0], this->textBin.size() * sizeof(char)); 
-            std::cout  << this->output->tellp() << std::endl <<std::flush;
+            //std::cout  << this->output->tellp() << std::endl <<std::flush;
         }
         if (this->sectionOrder[i] == SectionType::RO_DATA) {
             this->output->write(&this->roDataBin[0], this->roDataBin.size() * sizeof(char));
-            std::cout  << this->output->tellp() << std::endl <<std::flush;
+            //std::cout  << this->output->tellp() << std::endl <<std::flush;
         }
         if (this->sectionOrder[i] == SectionType::DATA) {
             this->output->write(&this->dataBin[0], this->dataBin.size() * sizeof(char)); 
-            std::cout  << this->output->tellp() << std::endl <<std::flush;
+            //std::cout  << this->output->tellp() << std::endl <<std::flush;
         }
         if (this->sectionOrder[i] == SectionType::BSS) {
             char* bss = new char[bssSize];
             this->output->write(&bss[0], bssSize);
             delete[] bss;
-            std::cout  << this->output->tellp() <<std::endl << std::flush;
+            //std::cout  << this->output->tellp() <<std::endl << std::flush;
         }
     }
 
@@ -359,22 +360,22 @@ void Assembler::writeOutput() {
 
     if (hasSymTab) {
         this->output->write((char*)&symTabEntries[0], sizeof(SymTabEntry) * symTabEntries.size());
-        std::cout  << this->output->tellp() << std::endl <<std::flush;
+        //std::cout  << this->output->tellp() << std::endl <<std::flush;
     }
 
     if (hasRelText) {
         this->output->write((char*)&this->relText[0], sizeof(Relocation) * this->relText.size());
-        std::cout  << this->output->tellp() <<std::endl << std::flush;
+        //std::cout  << this->output->tellp() <<std::endl << std::flush;
     }
 
     if (hasRelROData) {
         this->output->write((char*)&this->relROData[0], sizeof(Relocation) * this->relROData.size());
-            std::cout  << this->output->tellp() <<std::endl << std::flush;
+           // std::cout  << this->output->tellp() <<std::endl << std::flush;
     }
 
     if (hasRelData) {
         this->output->write((char*)&this->relData[0], sizeof(Relocation) * this->relData.size());
-            std::cout  << this->output->tellp() <<std::endl << std::flush;
+           // std::cout  << this->output->tellp() <<std::endl << std::flush;
     }
 
     if (hasStrTab) {
@@ -383,11 +384,11 @@ void Assembler::writeOutput() {
 
             this->output->write((char*)&sz, sizeof(int));
             this->output->write((char*)&symTabNames[i][0], sz);
-            std::cout  << this->output->tellp() << std::endl << std::flush;
+            //std::cout  << this->output->tellp() << std::endl << std::flush;
         }
     }
 
-    std::cout  << this->output->tellp() << std::flush;
+    //std::cout  << this->output->tellp() << std::flush;
     this->output->write((char*)&sectionHds[0], sizeof(SectionHeader) * sectionHdNum);
     
 }

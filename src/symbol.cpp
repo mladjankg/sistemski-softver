@@ -13,6 +13,7 @@ std::string Symbol::toString() const {
     std::string sectionName;
     size_t offset;
     size_t size = 0;
+    std::string access("/");
     if (this->getSectionPtr() != nullptr) {
         sectionName = this->getSectionPtr()->getName().substr(1);
         offset = this->getOffset() - this->getSectionPtr()->getOffset();
@@ -24,13 +25,18 @@ std::string Symbol::toString() const {
             
         }
         else {
+            Section *sec = (Section*)this;
             sectionName = this->getName().substr(1);
             offset = this->getOffset();
             size = ((Section*)this)->getSectionSize();
+            access = sec->getAccessRights() == RD ? "rd" : sec->getAccessRights() == RW ? "rw" :
+                    sec->getAccessRights() == EX ? "ex" : "wr";
         }
     }
     os << sectionName << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << offset 
-                        << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << size << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << this->getNo();
+                        << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << size 
+                        << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << access 
+                        << std::left << std::setfill(' ') << std::setw(FIELD_LENGTH) << this->getNo();
     
     return os.str();
 }

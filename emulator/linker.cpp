@@ -13,7 +13,7 @@
 #include "asm_declarations.h"
 #include "string_tokenizer.h"
 #include "linking_file_data.h"
-
+//#define LINKER_OUTPUT
 using namespace ss;
 
 // bool compareEntry(LinkingFileData* l1, LinkingFileData* l2) {
@@ -22,7 +22,7 @@ using namespace ss;
 
 Linker::Linker() {}
 
-Executable Linker::linkFiles(std::vector<std::string>& files) {
+Executable* Linker::linkFiles(std::vector<std::string>& files) {
     if (files.size() == 0) {
         throw LinkingException("No input files");
     }
@@ -91,7 +91,7 @@ Executable Linker::linkFiles(std::vector<std::string>& files) {
 
         merged.content.push_back(parsedFiles[i]->content[0]);
         merged.cumulativeSize += parsedFiles[i]->content[0].size;
-
+        currentOffset = parsedFiles[i]->content[0].size + parsedFiles[i]->header.entry;
         std::vector<SymTabEntry>& symTab = parsedFiles[i]->symbolTable;
         std::vector <std::string>& strTab =  parsedFiles[i]->strTab;
         for(int j = 0; j < symTab.size(); ++j) {
@@ -130,6 +130,7 @@ Executable Linker::linkFiles(std::vector<std::string>& files) {
        
     }
 
+    #ifdef LINKER_OUTPUT
     std::cout<<"\n";
 
     for (int i = 0; i < parsedFiles.size(); ++i) {
@@ -139,7 +140,8 @@ Executable Linker::linkFiles(std::vector<std::string>& files) {
             std::cout<<std::hex<<std::setfill('0')<<std::setw(2)<<((short)mergedContent[j] & 0xFF) << " ";
         }
     }
-    std::cout << std::flush;
+    std::cout << std::endl <<std::flush;
+    #endif
     // for (int i = 0; i < merged.content.size(); i++) {
     //     size_t start = merged.content[i].startAddr;
     //     for(int j = 0; j < merged.content[i].size; ++j) {
@@ -148,13 +150,72 @@ Executable Linker::linkFiles(std::vector<std::string>& files) {
         
     // }
 
+    //Getting sections and setting their access rights.
+    std::cout<<std::flush;
+    Executable* e = new Executable();
+    for(int i = 0; i < parsedFiles.size(); ++i) {
+        LinkingFileData* file = parsedFiles[i];
+        for (int j = 0; j < file->secHeaders.size(); ++j) {
+            Limit l;
+            l.low = file->header.entry + file->secHeaders[j].offset - file->header.ehSize;
+            l.high = file->header.entry + file->secHeaders[j].offset - file->header.ehSize + file->secHeaders[j].size - 1;
+            if (file->secHeaders[j].type == TEXT) {
+                #ifdef LINKER_OUTPUT
+                std::cout << "File: " << file->fileName << " section: text"
+                        << " lower:" << l.low << " higher:" << l.high << std::endl << std::flush;
+                #endif
+                e->ex.push_back(l);
+            }
+            if (file->secHeaders[j].type == DATA) {
+                #ifdef LINKER_OUTPUT
+                std::cout << "File: " << file->fileName << " section: data"
+                        << " lower:" << l.low << " higher: " << l.high << std::endl << std::flush;
+                #endif
+                e->rw.push_back(l);
+            }
+            if (file->secHeaders[j].type == RO_DATA) {
+                #ifdef LINKER_OUTPUT
+                std::cout << "File: " << file->fileName << " section: " << "rodata"
+                        << " lower:" << l.low << " higher:" << l.high << std::endl << std::flush;
+                #endif
+                e->rd.push_back(l);
+            }
+            if (file->secHeaders[j].type == BSS) {
+                #ifdef LINKER_OUTPUT
+                std::cout << "File: " << file->fileName << " section: " << "bss"
+                        << " lower:" << l.low << " higher:" << l.high << std::endl << std::flush; 
+                #endif
+                e->rw.push_back(l);
+            }
+
+        }
+    }
+
+    Limit stack;
+    stack.high = STACK_START - 1;
+    stack.low = STACK_START - STACK_SIZE;
+    Limit io;
+    io.high = 0x10000 - 1;
+    io.low = IO_RESERVED;
+    e->rw.push_back(io);
+    e->rw.push_back(stack);
+    if (e->ex.size() != 0) {
+        std::sort(e->ex.begin(), e->ex.end());
+    }
+    if (e->rd.size() != 0) {
+        std::sort(e->rd.begin(), e->rd.end());
+    }
+    if (e->rw.size() != 0) {
+        std::sort(e->rw.begin(), e->rw.end());
+    }
+    std::vector<Limit>& ex = e->ex;
     for(int i = 0; i < parsedFiles.size(); ++i) {
         delete parsedFiles[i];
     }
 
-    Executable e;
-    e.content = mergedContent;
-    e.startAddress = startAddress;
+
+    e->content = mergedContent;
+    e->startAddress = startAddress;
 
     return e;
 }
@@ -169,12 +230,19 @@ SymTabEntry* Linker::findSymbolById(int id, LinkingFileData* file) {
         
     }
 
-    for (auto it = merged.symbolMap.begin(); it != merged.symbolMap.end(); ++it)
-        if (it->second->id == id) 
-            return it->second;
+    auto its = merged.symbolMap.find(name);
+    if (its != merged.symbolMap.end()) {
+        return its->second;
+    }
+    else {
+        return nullptr;
+    }
+    // for (auto it = merged.symbolMap.begin(); it != merged.symbolMap.end(); ++it)
+    //     if (it->second->id == id) 
+    //         return it->second;
     
 
-    return nullptr;
+    // return nullptr;
 }
 
 void Linker::resolveSectionSymbols(char* mergedContent, std::vector<Relocation>& rel, LinkingFileData* file, SectionType section) {
@@ -224,13 +292,15 @@ void Linker::resolveSectionSymbols(char* mergedContent, std::vector<Relocation>&
 
         *refptr = newLow;
         *(refptr + 1) = newHigh;
-         std::cout << "Relocating symbol " + file->strTab[symbol->name] 
-                    << " old value:" << std::hex << (short)oldLow << ' ' <<std::hex << (short)oldHigh
-                    << " new value:" << std::hex << (short)newLow << ' ' << std::hex << (short)newHigh << std::endl;
+        #ifdef LINKER_OUTPUT
+          std::cout << "Relocating symbol " + file->strTab[symbol->name] 
+                     << " old value:" << std::hex << (short)oldLow << ' ' <<std::hex << (short)oldHigh
+                     << " new value:" << std::hex << (short)newLow << ' ' << std::hex << (short)newHigh << std::endl;
+        #endif
    }
 }
 
-Executable Linker::linkFiles(const char* files[], int num) {
+Executable* Linker::linkFiles(const char* files[], int num) {
     std::vector<std::string> filesVec;
 
     if (num <= 0) {

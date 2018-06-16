@@ -11,12 +11,17 @@ using namespace ss;
 
 
 
-Emulator::Emulator(char* memory, Address start) : callStack(0), running(false),
+Emulator::Emulator(Executable* e) : callStack(0), running(false),
     stackStart(STACK_START), stackSize(STACK_SIZE) {
-    this->cpu.r[7] = start;
-    this->memory = memory;
+    this->cpu.r[7] = e->startAddress;
+    this->memory = e->content;
     this->instructionError = false;
+    #ifdef TIMER_INTERRUPT
+    cpu.psw = 0 | TIMER_FLAG;
+    #else
     cpu.psw = 0;
+    #endif
+    exe = e;
 }
 
 void Emulator::startEmulation() {
@@ -41,6 +46,7 @@ void Emulator::startEmulation() {
     }
     catch (std::exception& e) {
         std::cout << e.what();
+        std::cout << std::endl << "Press any key to exit. ";
         mtx.lock();
         this->running = false;
         mtx.unlock();
@@ -75,6 +81,7 @@ void Emulator::tick(Emulator* emulator) {
 }
 
 void Emulator::keyboard(Emulator* emulator) {
+    bool running = true;
     while(1) {
         
         if (!emulator) break;
@@ -86,12 +93,16 @@ void Emulator::keyboard(Emulator* emulator) {
         emulator->mtx.unlock();
         char k;
 		k = std::getchar();
-        //std::cout << "\nKEYBOARD EVENT: " << k << std::endl;
-
         emulator->writeMtx.lock();
-        emulator->memory[KEYBOARD_REG] = k;
+        if (emulator->running) {
+            emulator->memory[KEYBOARD_REG] = k;
+        }
+        else {
+            running = false;
+        }
         emulator->writeMtx.unlock();
-        emulator->registerInterrupt(KEYBOARD);
+        if (running) 
+            emulator->registerInterrupt(KEYBOARD);
         // Emulator::mtx.unlock();
     }
     return;
@@ -104,10 +115,16 @@ void Emulator::registerInterrupt(InterruptType type) {
 }
 void Emulator::run() {
     while (running) {
-        this->fetchInstruction();
-        this->getOperands();
-        this->executeInstruction();
+        try {
+            this->fetchInstruction();
+            this->getOperands();
+            this->executeInstruction();
+        }
+        catch (int& i) {
+            this->instructionError = true;
+        }
         this->interrupt();
+        this->instructionError = false;
     }
     std::cout << "\nRun ended, press any key to exit. " << std::flush;
 }
@@ -115,7 +132,9 @@ void Emulator::run() {
 void Emulator::fetchInstruction() {
     //Reading first two bytes of instruction
     //C++ by default reads data as little endian and swaps bytes, so we need to swap it back.
-    Address firstHalf = this->getMemoryValue(this->memory + cpu.r[PC]);
+
+
+    Address firstHalf = this->getMemoryValue(this->memory + cpu.r[PC], EX);
     firstHalf = this->swapBytes(firstHalf);
 
     //Incrementing PC
@@ -129,7 +148,9 @@ void Emulator::fetchInstruction() {
     InstructionCode opCode = (InstructionCode)op;
 
     if (!this->opCodeValid(opCode)) {
-        throw EmulatingException("Invalid op code, opCode = " + opCode);
+        this->instructionError = true;
+        return;
+        //throw EmulatingException("Invalid op code, opCode = " + opCode);
     }
 
     //Ako ovde izadjes pri dohvatanju instrukcije nece se dobro uvecati location counter za sledecu.
@@ -150,7 +171,10 @@ void Emulator::fetchInstruction() {
                 AddressingCode addressing = (AddressingCode)add;
 
                 if (!this->addressingValid(addressing)) {
-                    throw EmulatingException("Invalid addressing code, opCode = " + opCode);
+                    std::cout << "Invalid addressing code, opCode = " << opCode;
+                    this->instructionError = true;
+                    return;
+                    //throw EmulatingException("Invalid addressing code, opCode = " + opCode);
                 }
 
                 //r0-r7 or psw
@@ -160,8 +184,9 @@ void Emulator::fetchInstruction() {
                 }
 
                 else {
+
                     //Reading first two bytes of instruction
-                    Address secondHalf = this->getMemoryValue(this->memory + cpu.r[PC]);
+                    Address secondHalf = this->getMemoryValue(this->memory + cpu.r[PC], EX);
                     //secondHalf = this->swapBytes(secondHalf);
 
                     //Incrementing PC
@@ -176,16 +201,20 @@ void Emulator::fetchInstruction() {
                 AddressingCode addressing = (AddressingCode)add;
 
                 if (!this->addressingValid(addressing)) {
-                    throw EmulatingException("Invalid addressing code, addressingCode = " + addressing);
+                    std::cout << "Invalid addressing code, addressingCode = " << addressing;
+                    this->instructionError = true;
+                    return;
+                    //throw EmulatingException("Invalid addressing code, addressingCode = " + addressing);
                 }
                 bool isPsw = (addressing == IMMED) && (((firstHalf & OP1_REG) >> OP1_REG_SHIFT) == 0x7);
                 if ((addressing == REGDIR) || isPsw) {
                     return;
                 }          
                 else {
+
                     //Reading first two bytes of instruction
-                    Address secondHalf = this->getMemoryValue(this->memory + cpu.r[PC]);
-                    //secondHalf = this->swapBytes(secondHalf);
+                    Address secondHalf = this->getMemoryValue(this->memory + cpu.r[PC], EX);
+
 
                     //Incrementing PC
                     cpu.r[PC] += 2;
@@ -201,15 +230,18 @@ void Emulator::fetchInstruction() {
         AddressingCode addressing1 = (AddressingCode)add1;
 
         if (!this->addressingValid(addressing1)) {
-            throw EmulatingException("Invalid addressing code, addressingCode = " + addressing1);
+            std::cout << "Invalid addressing code, addressingCode = " << addressing1;
+            this->instructionError = true;
+            return;
+
         }
 
         bool hasSecond = false;
         bool isPsw1 = (addressing1 == IMMED) && (((firstHalf & OP1_REG) >> OP1_REG_SHIFT) == 0x7);
         if (!(addressing1 == REGDIR) && !isPsw1) {
-        
+
             //Reading seocnd two bytes of instruction
-            Address secondHalf = this->getMemoryValue(this->memory + cpu.r[PC]);
+            Address secondHalf = this->getMemoryValue(this->memory + cpu.r[PC], EX);
             //secondHalf = this->swapBytes(secondHalf);
 
             //Incrementing PC
@@ -223,16 +255,23 @@ void Emulator::fetchInstruction() {
         AddressingCode addressing2 = (AddressingCode)add2;
 
         if (!this->addressingValid(addressing2)) {
-            throw EmulatingException("Invalid addressing code, addressingCode = " + addressing2);
+            std::cout << "Invalid addressing code, addressingCode = " << addressing2;
+            this->instructionError = true;
+            return;
+            //throw EmulatingException("Invalid addressing code, addressingCode = " + addressing2);
         }
         bool isPsw2 = (addressing2 == IMMED) && ((firstHalf & OP2_REG) == 0x7);
         if (!(addressing2 == REGDIR) && !isPsw2) {
         
             if (hasSecond) {
-                throw EmulatingException("Found combination of two memory addresing in one instruction.");
+                std::cout<< "Found combination of two memory addresing in one instruction.";
+                this->instructionError = true;
+                return;
+                //throw EmulatingException("Found combination of two memory addresing in one instruction.");
             }
+
             //Reading second two bytes of instruction
-            Address secondHalf = this->getMemoryValue(this->memory + cpu.r[PC]);
+            Address secondHalf = this->getMemoryValue(this->memory + cpu.r[PC], EX);
             //secondHalf = this->swapBytes(secondHalf);
 
             //Incrementing PC
@@ -249,7 +288,9 @@ void Emulator::getOperands() {
     if (!this->checkCondition()) {
         return;
     }
-
+    if (this->instructionError) {
+        return;
+    }
     InstructionCode opCode = (InstructionCode)((cpu.ir0 & OPCODE_MASK) >> OPCODE_SHIFT);
 
     if (Instruction::operandNumber[opCode] == 0) {
@@ -264,7 +305,10 @@ void Emulator::getOperands() {
                 AddressingCode addressing = (AddressingCode)add;
 
                 if (!this->addressingValid(addressing)) {
-                    throw EmulatingException("Invalid addressing code, addressingCode = " + addressing);
+                    std::cout << "Invalid addressing code.";
+                    this->instructionError = true;
+                    return;
+                    //throw EmulatingException("Invalid addressing code, addressingCode = " + addressing);
                 }
 
                 this->fetchOperand(cpu.src, OP2_ADDR, OP2_ADDR_SHIFT, OP2_REG, OP2_REG_SHIFT, opCode, addressing);
@@ -276,7 +320,10 @@ void Emulator::getOperands() {
                 AddressingCode addressing = (AddressingCode)add;
 
                 if (!this->addressingValid(addressing)) {
-                    throw EmulatingException("Invalid addressing code, addressingCode = " + addressing);
+                    std::cout << "Invalid addressing code.";
+                    this->instructionError = true;
+                    return;
+                    //throw EmulatingException("Invalid addressing code, addressingCode = " + addressing);
                 }
 
                 this->fetchOperand(cpu.dst, OP1_ADDR, OP1_ADDR_SHIFT, OP1_REG, OP1_REG_SHIFT, opCode, addressing);
@@ -291,7 +338,10 @@ void Emulator::getOperands() {
         AddressingCode addressing1 = (AddressingCode)add1;
 
         if (!this->addressingValid(addressing1)) {
-            throw EmulatingException("Invalid addressing code, addressingCode = " + addressing1);
+            std::cout << "Invalid addressing code.";
+            this->instructionError = true;
+            return;
+            //throw EmulatingException("Invalid addressing code, addressingCode = " + addressing1);
         }
 
         this->fetchOperand(cpu.dst, OP1_ADDR, OP1_ADDR_SHIFT, OP1_REG, OP1_REG_SHIFT, opCode, addressing1);
@@ -301,7 +351,10 @@ void Emulator::getOperands() {
         AddressingCode addressing2 = (AddressingCode)add2;
 
         if (!this->addressingValid(addressing2)) {
-            throw EmulatingException("Invalid addressing code, addressingCode = " + addressing2);
+            std::cout << "Invalid addressing code.";
+            this->instructionError = true;
+            return;
+            //throw EmulatingException("Invalid addressing code, addressingCode = " + addressing2);
         }
 
         this->fetchOperand(cpu.src, OP2_ADDR, OP2_ADDR_SHIFT, OP2_REG, OP2_REG_SHIFT, opCode, addressing2);
@@ -316,7 +369,9 @@ void Emulator::executeInstruction() {
     if (!this->checkCondition()) {
         return;
     }
-
+    if (this->instructionError) {
+        return;
+    }
     InstructionCode opCode = (InstructionCode)((cpu.ir0 & OPCODE_MASK) >> OPCODE_SHIFT);
 
     switch(opCode) {
@@ -389,7 +444,7 @@ void Emulator::executeInstruction() {
             if (cpu.r[SP] > this->stackStart) {
                 throw EmulatingException("Memory access violation.");
             }
-            cpu.dst = this->getMemoryValue(this->memory + cpu.r[SP]);
+            cpu.dst = this->getMemoryValue(this->memory + cpu.r[SP], RD);
             cpu.r[SP] += 2;
             break;
         }
@@ -410,14 +465,14 @@ void Emulator::executeInstruction() {
             if (cpu.r[SP] > this->stackStart) {
                 throw EmulatingException("Memory access violation.");
             }
-            cpu.psw = this->getMemoryValue(this->memory + cpu.r[SP]);
+            cpu.psw = this->getMemoryValue(this->memory + cpu.r[SP], RD);
             cpu.r[SP] += 2;
 
             if (cpu.r[SP] > this->stackStart) {
                 throw EmulatingException("Memory access violation.");
             }
 
-            cpu.r[PC] = this->getMemoryValue(this->memory + cpu.r[SP]);
+            cpu.r[PC] = this->getMemoryValue(this->memory + cpu.r[SP], RD);
             cpu.r[SP] += 2;
             break;
         }
@@ -435,28 +490,34 @@ void Emulator::executeInstruction() {
         }
     }
 
-
-    this->storeOperand(opCode);
+    if (!instructionError)
+        this->storeOperand(opCode);
 }
 
 void Emulator::interrupt() {
     InstructionCode opCode = (InstructionCode)((cpu.ir0 & OPCODE_MASK) >> OPCODE_SHIFT);
 
-    if (opCode == IRET) return;
-    if (!(cpu.psw & SET_I)) {
-        return; //Interrupt processing is disabled.
+    InterruptType type;
+    if (!instructionError) {
+        if (opCode == IRET) return;
+        if (!(cpu.psw & SET_I)) {
+            return; //Interrupt processing is disabled.
+        }
+        mtx.lock();
+        if (this->interruptBuffer.size() == 0) {
+            mtx.unlock();
+            return; //No incomming interupts.
+        }
+
+        type = this->interruptBuffer.front();
+        this->interruptBuffer.pop();
+        mtx.unlock();    
+        //Perserving current cpu state.
     }
-    mtx.lock();
-    if (this->interruptBuffer.size() == 0) {
-        mtx.unlock();
-        return; //No incomming interupts.
+    else {
+        type = InterruptType::INSTR_ERR;
     }
 
-    InterruptType type = this->interruptBuffer.front();
-    this->interruptBuffer.pop();
-    mtx.unlock();    
-    //Perserving current cpu state.
-    
     cpu.r[SP] -= 2;
     if (cpu.r[SP] < this->stackStart - this->stackSize) {
         throw EmulatingException("Stack overflow.");
@@ -475,7 +536,7 @@ void Emulator::interrupt() {
     this->setMemoryValue(this->memory + cpu.r[SP], reg);
     
 
-    Address nextPC = this->getMemoryValue(this->memory + 2 * type);
+    Address nextPC = this->getMemoryValue(this->memory + 2 * type, RD);
 
     cpu.psw = cpu.psw & RESET_I;
     cpu.r[PC] = nextPC;
@@ -519,7 +580,14 @@ Address Emulator::swapBytes(const Address bytes) const {
     return newHigh | newLow;
 }
 
-Address Emulator::getMemoryValue(char* addr) {
+Address Emulator::getMemoryValue(char* addr, Access type) {
+    // int address = reinterpret_cast<int>(addr);
+    // Address shortAddress = (Address)(address & 0xFFFF);
+    if (!this->access(addr - this->memory, type)) {
+        this->instructionError = true;
+        std::cout << "Segmentation fault.";
+        throw 1;
+    }
     writeMtx.lock();
     Address* mar = (Address*)addr;
     writeMtx.unlock();
@@ -527,10 +595,17 @@ Address Emulator::getMemoryValue(char* addr) {
 }
 
 void Emulator::setMemoryValue(char* addr, short& val) {
+    // int address = reinterpret_cast<int>(addr);
+    // Address shortAddress = (Address)(address & 0xFFFF);
+    if (!this->access(addr - this->memory, WR)) {
+        std::cout << "Segmentation fault.";
+        throw 1;
+    }
+
     this->writeMtx.lock();
     Address* mar = (Address*)addr;
     *mar = val;
-    this->writeMtx.unlock();
+
 
     int memAddr = (addr - this->memory);
     if (memAddr == OUTPUT_REG) {
@@ -541,6 +616,7 @@ void Emulator::setMemoryValue(char* addr, short& val) {
             std::cout << (char)val << std::flush;
         }
     }
+    this->writeMtx.unlock();
 }
 
 void Emulator::fetchOperand(short& writeReg, short opAddr, short opAddrShift, short opReg, short opRegShift, InstructionCode opCode, AddressingCode addressing) {
@@ -559,7 +635,7 @@ void Emulator::fetchOperand(short& writeReg, short opAddr, short opAddrShift, sh
         }
 
         case MEMDIR: {
-            Address val = this->getMemoryValue(this->memory + cpu.ir1);
+            Address val = this->getMemoryValue(this->memory + cpu.ir1, RD);
             writeReg = val;
             break;
         }
@@ -572,7 +648,7 @@ void Emulator::fetchOperand(short& writeReg, short opAddr, short opAddrShift, sh
             else {
                 reg = cpu.ir0 & opReg;
             }
-            Address val = this->getMemoryValue(this->memory + cpu.ir1 + cpu.r[reg]);
+            Address val = this->getMemoryValue(this->memory + cpu.ir1 + cpu.r[reg], RD);
             writeReg = val;
             break;
         }
@@ -588,7 +664,7 @@ void Emulator::fetchOperand(short& writeReg, short opAddr, short opAddrShift, sh
             }
 
             if (psw  && (opCode == CALL)) {
-                throw AssemblingException("Cannot use psw register with call instruciton.");
+                throw EmulatingException("Cannot use psw register with call instruciton.");
             }
 
             else if (psw) {
@@ -803,9 +879,53 @@ void Emulator::setZN() {
     }
 }
 
+bool Emulator::access(Address address, Access type) {
+    bool found = false;
+    if (type == EX) {
+        
+        for(int i = 0; (i < exe->ex.size()) && !found; ++i) {
+            found = (exe->ex[i].low <= address) && (address <= exe->ex[i].high);    
+        }
+
+        return found;
+    }
+
+    if (type == WR || type == RD) {
+        for(int i = 0; i < exe->rw.size(); ++i) {
+            if ((exe->rw[i].low <= address) && (address <= exe->rw[i].high)) {
+                return true;
+            }
+        }
+        if (type == WR)
+            return false;
+    }
+
+    if (type == RD) {
+        for(int i = 0; i < exe->rd.size(); ++i) {
+            if ((exe->rd[i].low <= address) && (address <= exe->rd[i].high)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
 
 Emulator::~Emulator() {
-    delete[] this->memory;
+    if (this->memory != nullptr) {
+        delete[] this->memory;
+        this->memory = nullptr;
+    }
+    if (this->exe != nullptr) {
+
+        exe->ex.clear();
+        exe->rd.clear();
+        exe->rw.clear();
+        delete exe;
+        exe = nullptr;
+    }
+
+    this->interruptBuffer.empty();
     //delete this->timer;
 }
 

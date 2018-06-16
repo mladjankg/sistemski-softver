@@ -44,6 +44,7 @@
 #define NEGATIVE_MASK 0x8000
 #define MOST_SIGNIFICANT_BIT 0x8000
 #define LEAST_SIGNIFICANT_BIT 0x0001
+#define TIMER_INTERRUPT
 namespace ss {
 typedef unsigned short Address;
     struct CPU {
@@ -59,12 +60,8 @@ typedef unsigned short Address;
 
     class Emulator {
     public:
-        Emulator(Executable e) : Emulator(e.content, e.startAddress) {
-            //this->memory = e.content;
-            //this->cpu.r[7] = e.startAddress;
-        }
+        Emulator(Executable* e);
 
-        Emulator(char* memory, Address start);
 
         void startEmulation();
         void run();
@@ -97,9 +94,10 @@ typedef unsigned short Address;
         
         void registerInterrupt(InterruptType type);
 
+        bool access(Address address, Access type);
         Address swapBytes(const Address bytes) const;
 
-        Address getMemoryValue(char* memoryLocation);
+        Address getMemoryValue(char* memoryLocation, Access type);
         void setMemoryValue(char* memoryLocation, short& value);
 
         CPU cpu;
@@ -116,6 +114,9 @@ typedef unsigned short Address;
         std::mutex writeMtx;
         std::queue<InterruptType> interruptBuffer;
         std::mutex mtx;
+
+        Executable* exe;
+
 
     };
 
