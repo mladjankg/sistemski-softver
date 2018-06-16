@@ -2,18 +2,114 @@
 #include "asm_declarations.h"
 #include "ss_exceptions.h"
 #include "instruction.h"
+#include <iostream>
+#include <thread>
+#include <chrono>
+#include <termios.h>
+#include <unistd.h>
 using namespace ss;
 
-void Emulator::startEmulation() {
-    this->running = true;
-    this->run();
+
+
+Emulator::Emulator(char* memory, Address start) : callStack(0), running(false),
+    stackStart(STACK_START), stackSize(STACK_SIZE) {
+    this->cpu.r[7] = start;
+    this->memory = memory;
+    this->instructionError = false;
+    cpu.psw = 0;
 }
 
+void Emulator::startEmulation() {
+    
+
+    struct termios t;
+	tcgetattr(STDIN_FILENO, &t); //get the current terminal I/O structure
+    t.c_lflag &= ~ICANON; //Manipulate the flag bits to do what you want it to do
+    t.c_lflag &= ~ECHO;
+    tcsetattr(STDIN_FILENO, TCSANOW, &t); //Apply the new settings
+
+
+    cpu.psw = cpu.psw | SET_I;
+    cpu.r[SP] = stackStart;
+    this->running = true;
+
+    std::thread timer(tick, this);
+    std::thread kb(keyboard, this);
+    try {
+    //t.detach();
+        this->run();
+    }
+    catch (std::exception& e) {
+        std::cout << e.what();
+        mtx.lock();
+        this->running = false;
+        mtx.unlock();
+    }
+
+    timer.join();
+    kb.join();
+    
+    tcgetattr(STDIN_FILENO, &t); //get the current terminal I/O structure
+    t.c_lflag |= ICANON; //Manipulate the flag bits to do what you want it to do
+    t.c_lflag |= ECHO;
+    tcsetattr(STDIN_FILENO, TCSANOW, &t); //Apply the new settings
+}
+
+void Emulator::tick(Emulator* emulator) {
+    while(1) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+        if (!emulator) break;
+        emulator->mtx.lock();
+        if (!emulator->running) {
+             emulator->mtx.unlock();
+             break;
+        }
+
+
+        emulator->mtx.unlock();
+        emulator->registerInterrupt(TIMER);
+
+    }
+    return;
+}
+
+void Emulator::keyboard(Emulator* emulator) {
+    while(1) {
+        
+        if (!emulator) break;
+        emulator->mtx.lock();
+        if (!emulator->running) {
+            emulator->mtx.unlock();
+            break;
+        }
+        emulator->mtx.unlock();
+        char k;
+		k = std::getchar();
+        //std::cout << "\nKEYBOARD EVENT: " << k << std::endl;
+
+        emulator->writeMtx.lock();
+        emulator->memory[KEYBOARD_REG] = k;
+        emulator->writeMtx.unlock();
+        emulator->registerInterrupt(KEYBOARD);
+        // Emulator::mtx.unlock();
+    }
+    return;
+}
+
+void Emulator::registerInterrupt(InterruptType type) {
+    mtx.lock();
+    this->interruptBuffer.push(type);
+    mtx.unlock();
+}
 void Emulator::run() {
     while (running) {
         this->fetchInstruction();
         this->getOperands();
+        this->executeInstruction();
+        this->interrupt();
     }
+    std::cout << "\nRun ended, press any key to exit. " << std::flush;
 }
 
 void Emulator::fetchInstruction() {
@@ -36,6 +132,11 @@ void Emulator::fetchInstruction() {
         throw EmulatingException("Invalid op code, opCode = " + opCode);
     }
 
+    //Ako ovde izadjes pri dohvatanju instrukcije nece se dobro uvecati location counter za sledecu.
+    // if (!(this->checkCondition())) {
+    //     return;
+    // }
+    
     if (Instruction::operandNumber[opCode] == 0) {
         return;
     }
@@ -145,7 +246,10 @@ void Emulator::fetchInstruction() {
 }
 
 void Emulator::getOperands() {
-    
+    if (!this->checkCondition()) {
+        return;
+    }
+
     InstructionCode opCode = (InstructionCode)((cpu.ir0 & OPCODE_MASK) >> OPCODE_SHIFT);
 
     if (Instruction::operandNumber[opCode] == 0) {
@@ -209,6 +313,10 @@ void Emulator::getOperands() {
 }
 
 void Emulator::executeInstruction() {
+    if (!this->checkCondition()) {
+        return;
+    }
+
     InstructionCode opCode = (InstructionCode)((cpu.ir0 & OPCODE_MASK) >> OPCODE_SHIFT);
 
     switch(opCode) {
@@ -219,6 +327,7 @@ void Emulator::executeInstruction() {
             this->doArithmeticInstruction(opCode);
             break;
         }
+
         case CMP: {
             bool srcSign = (cpu.src & MOST_SIGNIFICANT_BIT);
             bool dstSign = (cpu.dst & MOST_SIGNIFICANT_BIT);
@@ -227,6 +336,20 @@ void Emulator::executeInstruction() {
             bool resSign = (temp & MOST_SIGNIFICANT_BIT);
             
             bool overflow = (!dstSign && srcSign && resSign) || (dstSign && !srcSign && !resSign);
+            
+            if (temp == 0) {
+                cpu.psw = cpu.psw | SET_Z;
+            }
+            else {
+                cpu.psw = cpu.psw & RESET_Z;
+            }
+            if (temp & MOST_SIGNIFICANT_BIT) {
+                cpu.psw = cpu.psw | SET_N;
+            }
+            else {
+                cpu.psw = cpu.psw & RESET_N;
+            }
+
             if (overflow) {
                 cpu.psw = cpu.psw | SET_O;
             }
@@ -243,6 +366,7 @@ void Emulator::executeInstruction() {
             }
             break;
         }
+
         case AND:
         case OR:
         case NOT:
@@ -250,6 +374,7 @@ void Emulator::executeInstruction() {
             this->doLogicInstruction(opCode);
             break;
         }
+
         case PUSH: {
             cpu.r[SP] -= 2;
             if (cpu.r[SP] < this->stackStart - this->stackSize) {
@@ -259,6 +384,7 @@ void Emulator::executeInstruction() {
             this->setMemoryValue(this->memory + cpu.r[SP], cpu.src);
             break;
         }
+
         case POP: {
             if (cpu.r[SP] > this->stackStart) {
                 throw EmulatingException("Memory access violation.");
@@ -267,9 +393,19 @@ void Emulator::executeInstruction() {
             cpu.r[SP] += 2;
             break;
         }
+
         case CALL: {
+            cpu.r[SP] -= 2;
+            if (cpu.r[SP] < this->stackStart - this->stackSize) {
+                throw EmulatingException("Stack overflow.");
+            }
+            short val = (short)cpu.r[PC];
+            this->setMemoryValue(this->memory + cpu.r[SP], val);
+
+            cpu.r[PC] = cpu.src;
             break;
         }
+
         case IRET: {
             if (cpu.r[SP] > this->stackStart) {
                 throw EmulatingException("Memory access violation.");
@@ -285,25 +421,93 @@ void Emulator::executeInstruction() {
             cpu.r[SP] += 2;
             break;
         }
+
         case MOV: {
             cpu.dst = cpu.src;
             this->setZN();
             break;
         }
-        case SHL: {
-            break;
-        }
+
+        case SHL: 
         case SHR: {
+            this->doShift(opCode);
             break;
         }
     }
+
+
+    this->storeOperand(opCode);
 }
+
+void Emulator::interrupt() {
+    InstructionCode opCode = (InstructionCode)((cpu.ir0 & OPCODE_MASK) >> OPCODE_SHIFT);
+
+    if (opCode == IRET) return;
+    if (!(cpu.psw & SET_I)) {
+        return; //Interrupt processing is disabled.
+    }
+    mtx.lock();
+    if (this->interruptBuffer.size() == 0) {
+        mtx.unlock();
+        return; //No incomming interupts.
+    }
+
+    InterruptType type = this->interruptBuffer.front();
+    this->interruptBuffer.pop();
+    mtx.unlock();    
+    //Perserving current cpu state.
+    
+    cpu.r[SP] -= 2;
+    if (cpu.r[SP] < this->stackStart - this->stackSize) {
+        throw EmulatingException("Stack overflow.");
+    }
+
+    short reg = (short)cpu.r[PC];
+    this->setMemoryValue(this->memory + cpu.r[SP], reg);
+    
+    
+    cpu.r[SP] -= 2;
+    if (cpu.r[SP] < this->stackStart - this->stackSize) {
+        throw EmulatingException("Stack overflow.");
+    }
+
+    reg = (short)cpu.psw;
+    this->setMemoryValue(this->memory + cpu.r[SP], reg);
+    
+
+    Address nextPC = this->getMemoryValue(this->memory + 2 * type);
+
+    cpu.psw = cpu.psw & RESET_I;
+    cpu.r[PC] = nextPC;
+}
+
 bool Emulator::opCodeValid(const InstructionCode opCode) const {
     return (opCode >= InstructionCode::ADD) && (opCode <= InstructionCode::SHR);
 }
 
 bool Emulator::addressingValid(const AddressingCode addCode) const {
     return (addCode >= AddressingCode::IMMED) && (addCode <= AddressingCode::REGINDPOM);
+}
+
+bool Emulator::checkCondition() const {
+    char cond = (cpu.ir0 & CONDITION_MASK) >> CONDITION_SHIFT;
+    ConditionCode condition = (ConditionCode)cond;
+
+    switch (condition) {
+        case EQ: {
+            return cpu.psw & SET_Z;
+            break;
+        }
+        case GT: {
+            return !(cpu.psw & SET_N);
+        }
+        case NE: {
+            return !(cpu.psw & SET_Z);
+        }
+        case AL:{
+            return true;
+        }
+    }
 }
 
 Address Emulator::swapBytes(const Address bytes) const {
@@ -315,11 +519,28 @@ Address Emulator::swapBytes(const Address bytes) const {
     return newHigh | newLow;
 }
 
-Address Emulator::getMemoryValue(char* addr) const {
+Address Emulator::getMemoryValue(char* addr) {
+    writeMtx.lock();
     Address* mar = (Address*)addr;
-
-    
+    writeMtx.unlock();
     return *mar;
+}
+
+void Emulator::setMemoryValue(char* addr, short& val) {
+    this->writeMtx.lock();
+    Address* mar = (Address*)addr;
+    *mar = val;
+    this->writeMtx.unlock();
+
+    int memAddr = (addr - this->memory);
+    if (memAddr == OUTPUT_REG) {
+        if (val == 0x10) {
+            std::cout << ('\n') << std::flush;
+        }
+        else {
+            std::cout << (char)val << std::flush;
+        }
+    }
 }
 
 void Emulator::fetchOperand(short& writeReg, short opAddr, short opAddrShift, short opReg, short opRegShift, InstructionCode opCode, AddressingCode addressing) {
@@ -382,6 +603,58 @@ void Emulator::fetchOperand(short& writeReg, short opAddr, short opAddrShift, sh
     }
 }
 
+void Emulator::storeOperand(InstructionCode opCode) {
+
+    switch (opCode) {
+        case ADD: case SUB: case MUL: case DIV:
+        case AND: case OR:  case NOT:
+        case MOV: case SHR: case SHL: case POP: {
+            char add = (cpu.ir0 & OP1_ADDR) >> OP1_ADDR_SHIFT;
+            AddressingCode addressing = (AddressingCode)add;
+            switch (addressing) {
+                case REGDIR: {
+                    char reg = 0;
+                    reg = (cpu.ir0 & OP1_REG) >> OP1_REG_SHIFT;
+
+                    bool halt = ((reg == 7) && ((cpu.dst == (short)MAX_SHORT)));
+                    if (halt) {
+                        Emulator::mtx.lock();
+                        this->running = false;
+                        Emulator::mtx.unlock();
+                    }
+                        
+                    cpu.r[reg] = cpu.dst;
+
+                    
+                    break;
+                }
+
+                case MEMDIR: {
+                    this->setMemoryValue(this->memory + cpu.ir1, cpu.dst);
+
+                    break;
+                }
+
+                case REGINDPOM: {
+                    char reg = 0;
+                    reg = (cpu.ir0 & OP1_REG) >> OP1_REG_SHIFT;
+                    this->setMemoryValue(this->memory + cpu.ir1 + cpu.r[reg], cpu.dst);
+                    break;
+                }
+
+                case IMMED: {
+                    this->invalidInstruciton();
+                    break;
+                }
+            }
+            break;
+        }
+        default:
+            break;
+    }
+    return;
+}
+
 void Emulator::doLogicInstruction(InstructionCode opCode) {
     switch(opCode) {
         case AND: {
@@ -415,15 +688,12 @@ void Emulator::doLogicInstruction(InstructionCode opCode) {
 
             break;
         }
-        default: {
-            this->invalidInstruciton();
-            return;
-        }
         
-        if (opCode != TEST) {
-            this->setZN();
-        } 
+        
     }
+    if (opCode != TEST) {
+        this->setZN();
+    } 
 }
 
 void Emulator::doArithmeticInstruction(InstructionCode opCode) {
@@ -491,9 +761,27 @@ void Emulator::doArithmeticInstruction(InstructionCode opCode) {
 }
 
 void Emulator::doShift(InstructionCode opCode) {
-    if (opCode == SHL) {
-        bool carry = 
+
+    bool carry = false;
+    for (int i = 0; i < (Address)cpu.src && i < 16; ++i) {
+        if (opCode == SHL) {
+            carry = (cpu.dst & MOST_SIGNIFICANT_BIT);
+            cpu.dst <<= 1;
+        }
+        else {
+            carry = (cpu.dst & LEAST_SIGNIFICANT_BIT);
+            cpu.dst >>= 1;
+        }
     }
+
+    this->setZN();
+    if (carry) {
+        cpu.psw = cpu.psw | SET_C;
+    }
+    else {
+        cpu.psw = cpu.psw & RESET_C;
+    }
+    
 }
 
 void Emulator::invalidInstruciton() {
@@ -515,6 +803,11 @@ void Emulator::setZN() {
     }
 }
 
+
+Emulator::~Emulator() {
+    delete[] this->memory;
+    //delete this->timer;
+}
 
 
 

@@ -41,9 +41,10 @@ namespace ss {
 
     class LinkingException: public std::exception {
     public:
-        LinkingException(std::string msg) : message(msg) {}
-
+        LinkingException(std::string msg);
+        LinkingException(const LinkingException&);
         const char* what() const throw() {
+            
             return message.c_str();
         }
     private:
@@ -53,8 +54,8 @@ namespace ss {
 
     class EmulatingException: public std::exception {
     public:
-        EmulatingException(std::string msg) : message(msg) {}
-
+        EmulatingException(std::string msg);
+        EmulatingException(const EmulatingException&);
         const char* what() const throw() {
             return message.c_str();
         }

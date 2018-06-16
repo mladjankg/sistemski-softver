@@ -4,10 +4,17 @@
 #define MAX_SHORT 0xFFFF
 #define MAX_BYTE_MASK 0xFFFFFF00
 #define LIMIT_MASK 0xFFFF0000
+
 #define FIELD_LENGTH 15
+
 #define SECTION_NUMBER 4
 #define EXTENDED_SECTION_NUMBER 10
 
+#define STACK_START 0xFF7F
+#define STACK_SIZE 256
+
+#define IO_RESERVED 0xFF80
+#define IVT_SIZE 16
 //Instructions op codes.
 namespace ss {
     
@@ -31,7 +38,8 @@ namespace ss {
         RET,
         JMP,
         ADD_JMP, //One implementation of JMP, other is with mov
-        ALIGN_INST
+        ALIGN_INST,
+        HALT
     };
 
     //Addressing codes
@@ -94,6 +102,14 @@ namespace ss {
         R_386_PC16,
         R_386_16,
         R_386_32
+    };
+
+    enum InterruptType : char {
+        INIT,
+        TIMER,
+        INSTR_ERR,
+        KEYBOARD,
+        
     };
 }
 #endif

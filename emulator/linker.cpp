@@ -80,13 +80,13 @@ Executable Linker::linkFiles(std::vector<std::string>& files) {
     for (int i = 0; i < parsedFiles.size(); ++i) {
         //Check if file overlaps with another file.
         if (parsedFiles[i]->header.entry < currentOffset) {
-            throw AssemblingException("Entry address of file " + parsedFiles[i]->fileName 
+            throw LinkingException("Entry address of file " + parsedFiles[i]->fileName 
                                       + " overlaps with " + (i == 0 ? "IV table" : "file " + parsedFiles[i - 1]->fileName));
         }
 
         //Check if file exceeds memory limit.
-        if (parsedFiles[i]->header.entry + parsedFiles[i]->content[0].size > (ElfWord)MAX_SHORT) {
-            throw LinkingException("Content of file " + parsedFiles[i]->fileName + " exceeds memory size");
+        if (parsedFiles[i]->header.entry + parsedFiles[i]->content[0].size >= STACK_START - STACK_SIZE) {
+            throw LinkingException("Content of file " + parsedFiles[i]->fileName + " exceeds allowed memory size");
         }
 
         merged.content.push_back(parsedFiles[i]->content[0]);
@@ -211,7 +211,7 @@ void Linker::resolveSectionSymbols(char* mergedContent, std::vector<Relocation>&
         if (r.type == RelocationType::R_386_PC16) {
             ElfWord refaddr = r.offset + sh->offset - file->header.ehSize; // + merged.symbolMap[file->strTab[file->symbolTable[r.id].name]]->offset;
 
-            newValue = (ElfWord)(symbol->offset + oldValue - refaddr);
+            newValue = (ElfWord)(symbol->offset  + oldValue - refaddr - file->header.entry);
         }
 
         //std::cout << "Relocating symbol " + file->strTab[symbol->name] << " old value :";

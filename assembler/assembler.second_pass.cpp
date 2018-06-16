@@ -278,7 +278,7 @@ void Assembler::assembleDataSection(Section* current, size_t& locationCounter) {
                         binData->push_back((char)(offset & 0xFF));
 
                         relStream << std::setfill('0') << std::setw(2) << std::hex << (offset >> 8) << ' ';
-                        binData->push_back((char)(offset & 0xFF));
+                        binData->push_back((char)((offset >> 8) & 0xFF));
                     }
 
                     else if (bwl->getType() == DirectiveType::LONG) {

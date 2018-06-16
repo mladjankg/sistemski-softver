@@ -3,12 +3,18 @@
 
 #include "asm_declarations.h"
 #include "executable.h"
+#include <thread>
+#include <queue>
+#include <mutex>
 
 #define PC 7
-#define SP 8
+#define SP 6
 
 #define OPCODE_MASK 0x3C00
 #define OPCODE_SHIFT 10
+
+#define CONDITION_MASK 0xC000
+#define CONDITION_SHIFT 14
 
 #define OP1_ADDR 0x0300
 #define OP1_ADDR_SHIFT 8
@@ -28,9 +34,16 @@
 #define SET_C 0x0004
 #define RESET_N 0xFFF7
 #define SET_N 0x0008
+#define RESET_I 0xFFEF
+#define SET_I 0x0010
+
+#define TIMER_FLAG 0x2000
+#define KEYBOARD_REG 0xFFFC
+#define OUTPUT_REG 0xFFFE
 
 #define NEGATIVE_MASK 0x8000
 #define MOST_SIGNIFICANT_BIT 0x8000
+#define LEAST_SIGNIFICANT_BIT 0x0001
 namespace ss {
 typedef unsigned short Address;
     struct CPU {
@@ -51,37 +64,42 @@ typedef unsigned short Address;
             //this->cpu.r[7] = e.startAddress;
         }
 
-        Emulator(char* memory, Address start) : callStack(0), running(false) {
-            this->cpu.r[7] = start;
-            this->memory = memory;
-            bool instructionError = false;
-        }
+        Emulator(char* memory, Address start);
 
         void startEmulation();
         void run();
+
+        static void tick(Emulator* emulator);
+        static void keyboard(Emulator* emulator);
         bool isRunning() const { return this->running; }
+
+        ~Emulator();
     private:
 
         void fetchInstruction();
         void getOperands();
         void executeInstruction();
-
+        void interrupt();
 
         void fetchOperand(short& writeReg, short opAddr, short opAddrShift, short opReg, short opRegShift, InstructionCode opCode, AddressingCode addresing);
+        void storeOperand(InstructionCode opCode);
         void setZN();
 
         bool opCodeValid(const InstructionCode opCode) const;
         bool addressingValid(const AddressingCode addCode) const;
+        bool checkCondition() const;
 
         void doLogicInstruction(InstructionCode opCode);
         void doArithmeticInstruction(InstructionCode opCode);
         void doShift(InstructionCode opCode);
         
         void invalidInstruciton();
+        
+        void registerInterrupt(InterruptType type);
 
         Address swapBytes(const Address bytes) const;
 
-        Address getMemoryValue(char* memoryLocation) const;
+        Address getMemoryValue(char* memoryLocation);
         void setMemoryValue(char* memoryLocation, short& value);
 
         CPU cpu;
@@ -94,6 +112,12 @@ typedef unsigned short Address;
         bool running;
 
         bool instructionError;
+
+        std::mutex writeMtx;
+        std::queue<InterruptType> interruptBuffer;
+        std::mutex mtx;
+
     };
+
 }
 #endif

@@ -13,7 +13,7 @@ std::regex Instruction::ne("(([A-Za-z]{2})|([A-Za-z]{3})|([A-Za-z]{4}))(ne$)");
 std::regex Instruction::gt("(([A-Za-z]{2})|([A-Za-z]{3})|([A-Za-z]{4}))(gt$)");
 std::regex Instruction::unc("(^(([A-Za-z]{2})|([A-Za-z]{3})|([A-Za-z]{4}))$)");
 
-const char Instruction::operandNumber[] = {2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 1, 1, 0, 2, 2, 2, 0, 1, 2, 0};
+const char Instruction::operandNumber[] = {2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 1, 1, 0, 2, 2, 2, 0, 1, 2, 0, 0};
 
 void Instruction::parseInstruction(std::string line, int lineNumber) {
     
@@ -164,6 +164,10 @@ void Instruction::parseInstruction(std::string line, int lineNumber) {
                 this->instruction = InstructionCode::IRET;
                 instructionValid = true;
             }
+            else if (mnemonic.compare("halt") == 0) {
+                this->instruction = InstructionCode::HALT;
+                instructionValid = true;
+            }
             break;
         }
     }
@@ -228,15 +232,19 @@ void Instruction::parseInstruction(std::string line, int lineNumber) {
         operands = Utils::removeEmptySpaces(operands);
         if (operands.find_first_not_of(Utils::emptyChars) == std::string::npos) {
             
-        
             if (0 == Instruction::operandNumber[this->instruction]) {
-
+                
                 //Instruction ret is pseudo instruction that translates into pop pc.
                 if (this->instruction == InstructionCode::RET) {
                     this->instruction = InstructionCode::POP;
                     this->operand1 = new Operand("r7"); //r7 <=> PC
                 }
-      
+                else if (this->instruction == InstructionCode::HALT) {
+                    this->instruction = InstructionCode::MOV;
+                    this->operand1 = new Operand("r7");
+                    this->operand2 = new Operand("65535");
+                    this->size = 4;
+                }
                 return;
             }
             else {

@@ -6,7 +6,7 @@ SRCDIR=../src
 EMDIR=./
 CC=g++
 CFLAGS=-I$(IDIR)
-ARCH=-m32 -std=c++11 -static
+ARCH=-m32 -std=c++17 -static -Wl,--whole-archive -lpthread -Wl,--no-whole-archive
 PROGRAM=../emul
 
 
