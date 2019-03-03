@@ -63,7 +63,7 @@ void Emulator::startEmulation() {
 
 void Emulator::tick(Emulator* emulator) {
     while(1) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::seconds(3000));
 
         if (!emulator) break;
         emulator->mtx.lock();
@@ -115,14 +115,11 @@ void Emulator::registerInterrupt(InterruptType type) {
 }
 void Emulator::run() {
     while (running) {
-        try {
-            this->fetchInstruction();
-            this->getOperands();
-            this->executeInstruction();
-        }
-        catch (int& i) {
-            this->instructionError = true;
-        }
+
+        this->fetchInstruction();
+        this->getOperands();
+        this->executeInstruction();
+
         this->interrupt();
         this->instructionError = false;
     }
@@ -584,9 +581,7 @@ Address Emulator::getMemoryValue(char* addr, Access type) {
     // int address = reinterpret_cast<int>(addr);
     // Address shortAddress = (Address)(address & 0xFFFF);
     if (!this->access(addr - this->memory, type)) {
-        this->instructionError = true;
-        std::cout << "Segmentation fault.";
-        throw 1;
+        throw EmulatingException("Segmentation fault.\n");
     }
     writeMtx.lock();
     Address* mar = (Address*)addr;
@@ -598,8 +593,7 @@ void Emulator::setMemoryValue(char* addr, short& val) {
     // int address = reinterpret_cast<int>(addr);
     // Address shortAddress = (Address)(address & 0xFFFF);
     if (!this->access(addr - this->memory, WR)) {
-        std::cout << "Segmentation fault.";
-        throw 1;
+        throw EmulatingException("Segmentation fault.\n");
     }
 
     this->writeMtx.lock();
